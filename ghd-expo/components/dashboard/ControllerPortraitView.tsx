@@ -1,5 +1,5 @@
 import React, { memo, useState } from 'react';
-import { View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
@@ -68,187 +68,161 @@ const ControllerPortraitView = ({
 
     return (
         <View
-            className="flex-1 justify-between px-6 py-6"
+            className="flex-1 px-6 py-6"
             style={{
                 paddingBottom: portraitInsets.bottom + 24,
-                paddingTop: 12,
+                paddingTop: portraitInsets.top + 12,
             }}
         >
-            <View>
-                <Text className="text-secondary-500 text-xl font-bold">
-                    {controller.name}
-                </Text>
-                {!isConnected && (
-                    <Text className="text-secondary-500 text-sm font-semibold">
-                        {controller.serialNumber}
-                    </Text>
-                )}
-                <Text className="text-secondary-400 text-sm mt-1">
-                    {isConnected
-                        ? t('common.connected')
-                        : isScanning
-                          ? t('common.searching')
-                          : t('common.disconnected')}
-                </Text>
-                {!!controllerFaults.length && (
-                    <Text className="text-error-500 text-sm font-semibold mt-1">
-                        {t('common.faultDetected')}
-                    </Text>
-                )}
-                {(currentGear || currentGearPower) && (
-                    <Text className="text-secondary-500 text-sm mt-2">
-                        Gear: {currentGear || '--'} · Mode:{' '}
-                        {currentGearPower || '--'}
-                    </Text>
-                )}
-            </View>
-
-            <View className="items-center mt-6">
-                <NumberTicker
-                    hideWhenZero={false}
-                    sharedValue={calculatedSpeedSharedValue}
-                    fontSize={132}
-                    width={396}
-                />
-                <HStack className="items-center mt-2 gap-2">
-                    {usesGpsSpeed && (
-                        <Icon
-                            size={24}
-                            as={LucideLocateFixed}
-                            className="text-secondary-500"
-                        />
-                    )}
-                    <Text className="text-secondary-500 text-2xl font-bold">
-                        {prefersMph ? 'MPH' : 'KPH'}
-                    </Text>
-                </HStack>
-            </View>
-
-            <View className="mt-4">
-                {showBatteryInformation ? (
-                    <HStack className="items-center gap-4">
-                        <View className="flex-1">
-                            <BatteryBar
-                                height={24}
-                                socPercentage={parseInt(displayedBatterySoc)}
+            <View className="flex-1 justify-between">
+                <View className="items-center">
+                    <NumberTicker
+                        hideWhenZero={false}
+                        sharedValue={calculatedSpeedSharedValue}
+                        fontSize={120}
+                        width={360}
+                    />
+                    <HStack className="items-center mt-2 gap-2">
+                        {usesGpsSpeed && (
+                            <Icon
+                                size={22}
+                                as={LucideLocateFixed}
+                                className="text-secondary-500"
                             />
-                        </View>
-                        <Text
-                            className={`${effectiveBatteryColor} text-2xl font-bold`}
-                        >
-                            {displayedBatteryVoltage}V
+                        )}
+                        <Text className="text-secondary-500 text-2xl font-bold">
+                            {prefersMph ? 'MPH' : 'KPH'}
                         </Text>
                     </HStack>
-                ) : (
-                    <Text className="text-secondary-400">
-                        {t('trip.stats.energyConsumed')}: --
-                    </Text>
-                )}
-            </View>
+                </View>
 
-            <View
-                className="mt-4"
-                onLayout={(event) => {
-                    setBarsWidth(event.nativeEvent.layout.width);
-                }}
-            >
-                <AnimatedBars
-                    width={barsWidth}
-                    lineCurrent={lineCurrent}
-                    phaseA={phaseACurrent}
-                    phaseC={phaseCCurrent}
-                    maxLine={maxLineValue}
-                    maxPhase={maxPhaseValue}
-                />
-            </View>
-
-            <HStack className="justify-between mt-4">
-                <HudTemperature
-                    title={t('trip.stats.controllerTemperature', 'Controller')}
-                    value={mosTemperatureCelcius}
-                    prefersFahrenheit={prefersFahrenheit}
-                />
-                <HudTemperature
-                    title={t('trip.stats.motorTemperature')}
-                    value={motorTemperatureCelcius}
-                    prefersFahrenheit={prefersFahrenheit}
-                />
-            </HStack>
-
-            <View className="mt-4">
-                {tripSummary ? (
-                    <HStack className="flex-wrap gap-y-3">
-                        <HudStat
-                            label={t('trip.stats.voltageSag')}
-                            value={sagDisplay}
-                            valueClassName={sagToneClass}
-                        />
-                        {tripSummary.gpsSampleCount > 0 && (
-                            <HudStat
-                                label={t('trip.stats.maxSpeedGps')}
-                                value={`${tripSummary.gpsMaxSpeed} ${
-                                    prefersMph ? 'mph' : 'km/h'
-                                }`}
-                            />
+                <View className="gap-5">
+                    <View>
+                        {showBatteryInformation ? (
+                            <HStack className="items-center gap-4">
+                                <View className="flex-1">
+                                    <BatteryBar
+                                        height={24}
+                                        socPercentage={parseInt(displayedBatterySoc)}
+                                    />
+                                </View>
+                                <Text
+                                    className={`${effectiveBatteryColor} text-2xl font-bold`}
+                                >
+                                    {displayedBatteryVoltage}V
+                                </Text>
+                            </HStack>
+                        ) : (
+                            <Text className="text-secondary-400 text-sm">
+                                {t('trip.stats.energyConsumed')}: --
+                            </Text>
                         )}
-                        {tripSummary.gpsSampleCount > 0 && (
-                            <HudStat
-                                label={t('trip.stats.avgSpeedGps')}
-                                value={`${tripSummary.gpsAvgSpeed} ${
-                                    prefersMph ? 'mph' : 'km/h'
-                                }`}
-                            />
-                        )}
-                        <HudStat
-                            label={t('trip.stats.distance')}
-                            value={`${tripSummary.distance} ${
-                                prefersMph ? 'mi' : 'km'
-                            }`}
+                    </View>
+
+                    <View
+                        onLayout={(event) => {
+                            setBarsWidth(event.nativeEvent.layout.width);
+                        }}
+                    >
+                        <AnimatedBars
+                            width={barsWidth}
+                            lineCurrent={lineCurrent}
+                            phaseA={phaseACurrent}
+                            phaseC={phaseCCurrent}
+                            maxLine={maxLineValue}
+                            maxPhase={maxPhaseValue}
                         />
-                        <HudStat
-                            label={t('trip.stats.remainingDistance')}
-                            value={`${tripSummary.remaining} ${
-                                prefersMph ? 'mi' : 'km'
-                            }`}
+                    </View>
+
+                    <HStack className="justify-between">
+                        <HudTemperature
+                            title={t('trip.stats.controllerTemperature', 'Controller')}
+                            value={mosTemperatureCelcius}
+                            prefersFahrenheit={prefersFahrenheit}
                         />
-                        <HudStat
-                            label={t('trip.stats.cumulativeEnergy')}
-                            value={`${tripSummary.cumulativeEnergy}Wh`}
-                        />
-                        <HudStat
-                            label={t('trip.stats.maxSpeedCalculated')}
-                            value={`${tripSummary.maxSpeed} ${
-                                prefersMph ? 'mph' : 'km/h'
-                            }`}
-                        />
-                        <HudStat
-                            label={t('trip.stats.avgSpeedCalculated')}
-                            value={`${tripSummary.avgSpeed} ${
-                                prefersMph ? 'mph' : 'km/h'
-                            }`}
-                        />
-                        <HudStat
-                            label={t('trip.stats.avgPower')}
-                            value={`${tripSummary.avgPower}W`}
-                        />
-                        <HudStat
-                            label={prefersMph ? 'Wh/mi' : 'Wh/km'}
-                            value={tripSummary.whPerUnit}
-                        />
-                        <HudStat
-                            label={t('trip.stats.maxVoltageSag')}
-                            value={`${tripSummary.maxVoltageSag}V`}
-                        />
-                        <HudClockStat
-                            label={t('trip.stats.timeElapsed')}
-                            startTime={tripSummary.startTime}
+                        <HudTemperature
+                            title={t('trip.stats.motorTemperature')}
+                            value={motorTemperatureCelcius}
+                            prefersFahrenheit={prefersFahrenheit}
                         />
                     </HStack>
-                ) : (
-                    <Text className="text-secondary-400">
-                        {t('trip.noTripsFound')}
-                    </Text>
-                )}
+
+                    <View>
+                        {tripSummary ? (
+                            <HStack className="flex-wrap gap-y-3">
+                                <HudStat
+                                    label={t('trip.stats.voltageSag')}
+                                    value={sagDisplay}
+                                    valueClassName={sagToneClass}
+                                />
+                                {tripSummary.gpsSampleCount > 0 && (
+                                    <HudStat
+                                        label={t('trip.stats.maxSpeedGps')}
+                                        value={`${tripSummary.gpsMaxSpeed} ${
+                                            prefersMph ? 'mph' : 'km/h'
+                                        }`}
+                                    />
+                                )}
+                                {tripSummary.gpsSampleCount > 0 && (
+                                    <HudStat
+                                        label={t('trip.stats.avgSpeedGps')}
+                                        value={`${tripSummary.gpsAvgSpeed} ${
+                                            prefersMph ? 'mph' : 'km/h'
+                                        }`}
+                                    />
+                                )}
+                                <HudStat
+                                    label={t('trip.stats.distance')}
+                                    value={`${tripSummary.distance} ${
+                                        prefersMph ? 'mi' : 'km'
+                                    }`}
+                                />
+                                <HudStat
+                                    label={t('trip.stats.remainingDistance')}
+                                    value={`${tripSummary.remaining} ${
+                                        prefersMph ? 'mi' : 'km'
+                                    }`}
+                                />
+                                <HudStat
+                                    label={t('trip.stats.cumulativeEnergy')}
+                                    value={`${tripSummary.cumulativeEnergy}Wh`}
+                                />
+                                <HudStat
+                                    label={t('trip.stats.maxSpeedCalculated')}
+                                    value={`${tripSummary.maxSpeed} ${
+                                        prefersMph ? 'mph' : 'km/h'
+                                    }`}
+                                />
+                                <HudStat
+                                    label={t('trip.stats.avgSpeedCalculated')}
+                                    value={`${tripSummary.avgSpeed} ${
+                                        prefersMph ? 'mph' : 'km/h'
+                                    }`}
+                                />
+                                <HudStat
+                                    label={t('trip.stats.avgPower')}
+                                    value={`${tripSummary.avgPower}W`}
+                                />
+                                <HudStat
+                                    label={prefersMph ? 'Wh/mi' : 'Wh/km'}
+                                    value={`${tripSummary.whPerUnit}`}
+                                />
+                                <HudStat
+                                    label={t('trip.stats.maxVoltageSag')}
+                                    value={`${tripSummary.maxVoltageSag}V`}
+                                />
+                                <HudClockStat
+                                    label={t('trip.stats.timeElapsed')}
+                                    startTime={tripSummary.startTime}
+                                />
+                            </HStack>
+                        ) : (
+                            <Text className="text-secondary-400">
+                                {t('trip.noTripsFound')}
+                            </Text>
+                        )}
+                    </View>
+                </View>
             </View>
         </View>
     );

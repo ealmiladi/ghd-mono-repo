@@ -1,9 +1,6 @@
 import React, { memo } from 'react';
-import { Modal, View, useWindowDimensions } from 'react-native';
-import {
-    SafeAreaView,
-    useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import { Modal, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { LucideTimerOff, LucideX } from 'lucide-react-native';
@@ -13,9 +10,7 @@ import ControllerPortraitView from '@/components/dashboard/ControllerPortraitVie
 import type { Controller } from '@/interfaces/Controller';
 import type { Device } from 'react-native-ble-plx';
 import type { TripSummary } from '@/components/dashboard/types';
-
-const HUD_BACKGROUND_LIGHT = '#f8fafc';
-const HUD_BACKGROUND_DARK = '#020817';
+import useControllerOrientation from '@/hooks/useControllerOrientation';
 
 type FullscreenHudProps = {
     visible: boolean;
@@ -86,17 +81,20 @@ const FullscreenHud = memo((props: FullscreenHudProps) => {
         currentLocation,
     } = props;
 
-    const { width, height } = useWindowDimensions();
     const hudInsets = useSafeAreaInsets();
-    const isLandscape = width > height;
-    const hudBackground =
-        colorScheme === 'dark' ? HUD_BACKGROUND_DARK : HUD_BACKGROUND_LIGHT;
-
+    const isLandscape = useControllerOrientation();
     return (
         <Modal
             visible={visible}
             animationType="fade"
             presentationStyle="fullScreen"
+            supportedOrientations={[
+                'portrait',
+                'portrait-upside-down',
+                'landscape',
+                'landscape-left',
+                'landscape-right',
+            ]}
             onRequestClose={onClose}
         >
             <View className="bg-background-0 flex-1">
