@@ -1,11 +1,4 @@
-import React, {
-    memo,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
+import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
@@ -15,6 +8,7 @@ import { LucideLocateFixed, LucideBluetoothOff } from 'lucide-react-native';
 import AnimatedBars from '@/components/dashboard/AnimatedAmps';
 import BatteryBar from '@/components/dashboard/BatteryBar';
 import Clock from '@/components/dashboard/Clock';
+import MotorVitalsCard from '@/components/dashboard/MotorVitalsCard';
 import { useTranslation } from 'react-i18next';
 import { IS_SIMULATOR_MODE } from '@/utils/env';
 import type { ControllerPortraitViewProps } from '@/components/dashboard/ControllerPortraitView';
@@ -93,7 +87,7 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
     }, [gaugeWidth]);
 
     const barsWidth = useMemo(() => {
-        return Math.round(Math.max(180, gaugeWidth * 0.85));
+        return Math.round(Math.max(180, gaugeWidth));
     }, [gaugeWidth]);
 
     const isConnected = IS_SIMULATOR_MODE || !!device;
@@ -217,13 +211,6 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
         if (currentRegion && mapRef.current) {
             mapRef.current.animateToRegion(currentRegion, 0);
         }
-    }, [currentRegion]);
-
-    const handleRecenter = useCallback(() => {
-        if (!currentRegion) {
-            return;
-        }
-        mapRef.current?.animateToRegion(currentRegion, 500);
     }, [currentRegion]);
 
     const showTemperatureSection =
@@ -396,7 +383,10 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                                             shadowColor: '#2563EB',
                                             shadowOpacity: 0.35,
                                             shadowRadius: 6,
-                                            shadowOffset: { width: 0, height: 2 },
+                                            shadowOffset: {
+                                                width: 0,
+                                                height: 2,
+                                            },
                                         }}
                                     />
                                 </Marker>
@@ -415,60 +405,32 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
             });
         }
 
-        if (showTemperatureSection) {
-            slides.push({
-                key: 'temperatures',
-                content: (
-                    <View className="gap-6">
-                        <Text className="text-secondary-400 text-xs uppercase font-semibold">
-                            {t(
-                                'trip.stats.temperaturesHeading',
-                                'Temperatures'
-                            )}
-                        </Text>
-                        <HStack className="gap-10">
-                            <HudTemperature
-                                title={t(
-                                    'trip.stats.controllerTemperature',
-                                    'Controller'
-                                )}
-                                value={mosTemperatureCelcius}
-                                prefersFahrenheit={prefersFahrenheit}
-                            />
-                            <HudTemperature
-                                title={t('trip.stats.motorTemperature')}
-                                value={motorTemperatureCelcius}
-                                prefersFahrenheit={prefersFahrenheit}
-                            />
-                        </HStack>
-                    </View>
-                ),
-            });
-        }
+        const showMotorVitalsCard =
+            isConnected || IS_SIMULATOR_MODE || showTemperatureSection;
 
-        if (isConnected || IS_SIMULATOR_MODE) {
+        if (showMotorVitalsCard) {
             slides.push({
-                key: 'motor-output',
+                key: 'motor-vitals',
                 content: (
-                    <View className="gap-6">
+                    <View className="gap-6 flex-1">
                         <Text className="text-secondary-400 text-xs uppercase font-semibold">
                             {t('trip.stats.motorOutputHeading', 'Motor Output')}
                         </Text>
-                        <HStack className="gap-6">
-                            <AnimatedValueStat
-                                label={t('trip.stats.currentRpm', 'Motor RPM')}
-                                unit="RPM"
-                                sharedValue={rpmSharedValue}
-                            />
-                            <AnimatedValueStat
-                                label={t(
-                                    'trip.stats.inputPower',
-                                    'Input Power'
-                                )}
-                                unit="W"
-                                sharedValue={wattsSharedValue}
-                            />
-                        </HStack>
+                        <MotorVitalsCard
+                            rpmSharedValue={rpmSharedValue}
+                            wattsSharedValue={wattsSharedValue}
+                            motorTemperatureCelcius={motorTemperatureCelcius}
+                            controllerTemperatureCelcius={mosTemperatureCelcius}
+                            prefersFahrenheit={prefersFahrenheit}
+                            rpmLabel={t('trip.stats.currentRpm', 'Motor RPM')}
+                            wattsLabel={t(
+                                'trip.stats.inputPower',
+                                'Input Power'
+                        )}
+                            motorTempLabel={t('trip.stats.motorTemperature')}
+                            controllerTempLabel="MOS"
+                            style={{ alignSelf: 'stretch', flexGrow: 1 }}
+                        />
                     </View>
                 ),
             });
@@ -634,11 +596,13 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
         >
             <HStack
                 className="flex-1 gap-4"
-                onLayout={(event) => setContainerWidth(event.nativeEvent.layout.width)}
+                onLayout={(event) =>
+                    setContainerWidth(event.nativeEvent.layout.width)
+                }
             >
                 <View
                     className="flex-1"
-                    style={{ flexBasis: 0, flexGrow: 1.35 }}
+                    style={{ flexBasis: 0, flexGrow: 0.8 }}
                     onLayout={(event) =>
                         setLeftSectionWidth(event.nativeEvent.layout.width)
                     }
@@ -675,11 +639,8 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                                 <View
                                     style={{
                                         flex: 1,
-                                        paddingRight:
-                                            !slide.disablePadding &&
-                                            leftSectionWidth
-                                                ? 24
-                                                : 0,
+                                        paddingHorizontal:
+                                            !slide.disablePadding ? 24 : 0,
                                     }}
                                 >
                                     {slide.content}
@@ -788,23 +749,22 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                             );
                         }}
                     >
-                        {rightSlides.map((slide) => (
+                        {rightSlides.map((slide, index) => (
                             <View
                                 key={slide.key}
                                 style={{
                                     width: rightSectionWidth || undefined,
                                     height: '100%',
                                     flexShrink: 0,
+                                    marginRight:
+                                        index === rightSlides.length - 1 ? 0 : 16,
                                 }}
                             >
                                 <View
                                     style={{
                                         flex: 1,
-                                        paddingRight:
-                                            !slide.disablePadding &&
-                                            rightSectionWidth
-                                                ? 24
-                                                : 0,
+                                        paddingHorizontal:
+                                            !slide.disablePadding ? 16 : 0,
                                     }}
                                 >
                                     {slide.content}
@@ -870,67 +830,6 @@ const HudClockStat = ({
             startTime={startTime}
             className="text-secondary-600 text-xl font-bold"
         />
-    </View>
-);
-
-const HudTemperature = ({
-    title,
-    value,
-    prefersFahrenheit,
-}: {
-    title: string;
-    value: number | undefined;
-    prefersFahrenheit: boolean;
-}) => {
-    if (value === undefined) {
-        return null;
-    }
-    const converted = prefersFahrenheit ? value * 1.8 + 32 : value;
-    const unit = prefersFahrenheit ? '°F' : '°C';
-    const color =
-        value < 60
-            ? 'text-green-500'
-            : value < 80
-              ? 'text-yellow-500'
-              : 'text-red-500';
-
-    return (
-        <View className="items-start">
-            <Text className="text-secondary-500 text-xs uppercase font-semibold">
-                {title}
-            </Text>
-            <Text className={`text-3xl font-bold ${color}`}>
-                {converted.toFixed(0)}
-                {unit}
-            </Text>
-        </View>
-    );
-};
-
-const AnimatedValueStat = ({
-    label,
-    unit,
-    sharedValue,
-}: {
-    label: string;
-    unit: string;
-    sharedValue: any;
-}) => (
-    <View className="flex-1">
-        <Text className="text-secondary-500 text-xs uppercase font-semibold">
-            {label}
-        </Text>
-        <HStack className="items-end gap-2">
-            <NumberTicker
-                sharedValue={sharedValue}
-                hideWhenZero={false}
-                fontSize={64}
-                width={180}
-            />
-            <Text className="text-secondary-400 text-lg font-semibold">
-                {unit}
-            </Text>
-        </HStack>
     </View>
 );
 
