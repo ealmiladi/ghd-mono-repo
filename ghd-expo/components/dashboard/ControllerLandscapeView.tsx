@@ -1,5 +1,6 @@
 import React, {
     memo,
+    useCallback,
     useEffect,
     useMemo,
     useRef,
@@ -67,11 +68,11 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
     } = props;
 
     const { t } = useTranslation();
-    const [barsWidth, setBarsWidth] = useState(400);
     const [leftSectionWidth, setLeftSectionWidth] = useState(0);
     const [rightSectionWidth, setRightSectionWidth] = useState(0);
     const [leftSlideIndex, setLeftSlideIndex] = useState(0);
     const [rightSlideIndex, setRightSlideIndex] = useState(0);
+    const [containerWidth, setContainerWidth] = useState(0);
     const leftScrollRef = useRef<ScrollView | any>(null);
     const rightScrollRef = useRef<ScrollView | any>(null);
     const leftSnapInterval =
@@ -79,6 +80,21 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
     const rightSnapInterval =
         rightSectionWidth > 0 ? rightSectionWidth : undefined;
     const mapRef = useRef<MapView | null>(null);
+
+    const gaugeWidth = useMemo(() => {
+        if (!containerWidth) {
+            return 300;
+        }
+        return Math.min(300, Math.max(240, containerWidth * 0.26));
+    }, [containerWidth]);
+
+    const gaugeFontSize = useMemo(() => {
+        return Math.round(Math.min(156, Math.max(108, gaugeWidth * 0.5)));
+    }, [gaugeWidth]);
+
+    const barsWidth = useMemo(() => {
+        return Math.round(Math.max(180, gaugeWidth * 0.85));
+    }, [gaugeWidth]);
 
     const isConnected = IS_SIMULATOR_MODE || !!device;
     const showBatteryInformation =
@@ -201,6 +217,13 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
         if (currentRegion && mapRef.current) {
             mapRef.current.animateToRegion(currentRegion, 0);
         }
+    }, [currentRegion]);
+
+    const handleRecenter = useCallback(() => {
+        if (!currentRegion) {
+            return;
+        }
+        mapRef.current?.animateToRegion(currentRegion, 500);
     }, [currentRegion]);
 
     const showTemperatureSection =
@@ -333,7 +356,7 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                 key: 'map',
                 disablePadding: true,
                 content: (
-                    <View className="gap-4">
+                    <View className="gap-4 w-full" style={{ flex: 1 }}>
                         <Text className="text-secondary-400 text-xs uppercase font-semibold">
                             {t(
                                 'trip.stats.currentLocationHeading',
@@ -342,9 +365,9 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                         </Text>
                         <View
                             style={{
-                                height: 280,
+                                flex: 1,
                                 width: '100%',
-                                borderRadius: 24,
+                                borderRadius: 28,
                                 overflow: 'hidden',
                             }}
                         >
@@ -609,7 +632,10 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                 paddingBottom: insets.bottom + 16,
             }}
         >
-            <HStack className="flex-1 gap-4">
+            <HStack
+                className="flex-1 gap-4"
+                onLayout={(event) => setContainerWidth(event.nativeEvent.layout.width)}
+            >
                 <View
                     className="flex-1"
                     style={{ flexBasis: 0, flexGrow: 1.35 }}
@@ -642,9 +668,20 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                                 key={slide.key}
                                 style={{
                                     width: leftSectionWidth || undefined,
+                                    height: '100%',
+                                    flexShrink: 0,
                                 }}
                             >
-                                <View style={{ paddingRight: 24 }}>
+                                <View
+                                    style={{
+                                        flex: 1,
+                                        paddingRight:
+                                            !slide.disablePadding &&
+                                            leftSectionWidth
+                                                ? 24
+                                                : 0,
+                                    }}
+                                >
                                     {slide.content}
                                 </View>
                             </View>
@@ -666,23 +703,23 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
 
                 <View
                     className="items-center"
-                    style={{ width: 320, flexShrink: 0 }}
+                    style={{ width: gaugeWidth, flexShrink: 0 }}
                 >
                     <NumberTicker
                         hideWhenZero={false}
                         sharedValue={calculatedSpeedSharedValue}
-                        fontSize={128}
-                        width={320}
+                        fontSize={gaugeFontSize}
+                        width={gaugeWidth}
                     />
                     <HStack className="items-center mt-2 gap-2">
                         {usesGpsSpeed && (
                             <Icon
-                                size={24}
+                                size={28}
                                 as={LucideLocateFixed}
                                 className="text-secondary-500"
                             />
                         )}
-                        <Text className="text-secondary-500 text-2xl font-bold">
+                        <Text className="text-secondary-500 text-3xl font-bold">
                             {prefersMph ? 'MPH' : 'KPH'}
                         </Text>
                     </HStack>
@@ -712,12 +749,7 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                         )}
                     </View>
 
-                    <View
-                        className="w-full mt-4"
-                        onLayout={(event) => {
-                            setBarsWidth(event.nativeEvent.layout.width);
-                        }}
-                    >
+                    <View className="mt-4 w-full items-center">
                         <AnimatedBars
                             width={barsWidth}
                             lineCurrent={lineCurrent}
@@ -761,9 +793,20 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                                 key={slide.key}
                                 style={{
                                     width: rightSectionWidth || undefined,
+                                    height: '100%',
+                                    flexShrink: 0,
                                 }}
                             >
-                                <View style={{ paddingRight: 24 }}>
+                                <View
+                                    style={{
+                                        flex: 1,
+                                        paddingRight:
+                                            !slide.disablePadding &&
+                                            rightSectionWidth
+                                                ? 24
+                                                : 0,
+                                    }}
+                                >
                                     {slide.content}
                                 </View>
                             </View>

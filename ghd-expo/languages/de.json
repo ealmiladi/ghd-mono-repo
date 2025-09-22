@@ -246,6 +246,7 @@
         "savedTrip": "Reise wurde erfolgreich gespeichert! 🚀",
         "savedTripError": "Fehler beim Speichern der Reisedaten.",
         "fullscreenHud": "Vollbildanzeige",
+        "fullScreenButton": "Vollbild",
         "routeReplay": {
           "title": "Routen-Wiedergabe",
           "noData": "Für diese Reise wurden keine Routendaten aufgezeichnet.",

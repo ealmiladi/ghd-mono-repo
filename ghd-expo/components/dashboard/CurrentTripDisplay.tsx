@@ -233,48 +233,47 @@ const CurrentTripDisplay = memo(
 
         return (
             <View className="bg-secondary-100 rounded-2xl p-4">
-                <HStack className="items-center justify-between">
-                    <Heading>{t('trip.currentTrip')}</Heading>
-                    <HStack className="gap-2">
-                        {onOpenHud && (
-                            <Button
-                                variant="outline"
-                                size="xs"
-                                className="px-0 w-9 h-9"
-                                onPress={onOpenHud}
-                                accessibilityLabel={t('trip.fullscreenHud')}
-                            >
-                                <Icon
-                                    as={LucideMaximize2}
-                                    className="text-secondary-500"
-                                />
-                            </Button>
-                        )}
-                        <Button
-                            variant="solid"
-                            size="sm"
-                            disabled={isSaving || isEndingTrip}
-                            action="primary"
-                            onPress={() => setConfirmModalOpen(true)}
-                        >
-                            {isSaving || isEndingTrip ? (
-                                <Spinner />
-                            ) : (
-                                <Icon
-                                    as={LucideTimerOff}
-                                    className="text-secondary-100"
-                                />
-                            )}
-
-                            <ButtonText>{t('trip.endTrip')}</ButtonText>
-                        </Button>
-                    </HStack>
-                </HStack>
+                <Heading>{t('trip.currentTrip')}</Heading>
                 <View className="mt-4 flex-row flex-wrap gap-y-3">
                     {rows.map((row, index) => (
                         <Row key={index} index={index} {...(row as any)} />
                     ))}
                 </View>
+                <HStack className="mt-6 justify-end gap-3">
+                    {onOpenHud && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="px-3"
+                            onPress={onOpenHud}
+                            accessibilityLabel={t('trip.fullscreenHud')}
+                        >
+                            <Icon
+                                as={LucideMaximize2}
+                                className="text-secondary-500"
+                            />
+                            <ButtonText>{t('trip.fullScreenButton')}</ButtonText>
+                        </Button>
+                    )}
+                    <Button
+                        variant="solid"
+                        size="sm"
+                        disabled={isSaving || isEndingTrip}
+                        action="primary"
+                        onPress={() => setConfirmModalOpen(true)}
+                    >
+                        {isSaving || isEndingTrip ? (
+                            <Spinner />
+                        ) : (
+                            <Icon
+                                as={LucideTimerOff}
+                                className="text-secondary-100"
+                            />
+                        )}
+
+                        <ButtonText>{t('trip.endTrip')}</ButtonText>
+                    </Button>
+                </HStack>
                 <AlertDialog
                     heading={t('trip.endTrip')}
                     description={t('trip.endTripDescription')}

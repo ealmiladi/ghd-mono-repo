@@ -22,12 +22,12 @@ const AnimatedHorizontalBars = ({
     maxPhase,
     width = 150,
 }) => {
-    const barHeight = 42;
-    const spacing = 8;
+    const barHeight = 32;
+    const spacing = 10;
     const canvasWidth = width;
     const totalHeight = (barHeight + spacing) * 3;
     const fontSize = 16;
-    const cornerRadius = 12;
+    const cornerRadius = 10;
     const colorScheme = useColorScheme(); // Hook for theme detection
 
     // useEffect(() => {

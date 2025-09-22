@@ -246,6 +246,7 @@
         "savedTrip": "Trajet enregistré avec succès ! 🚀",
         "savedTripError": "Erreur lors de l'enregistrement des données du trajet.",
         "fullscreenHud": "Affichage plein écran",
+        "fullScreenButton": "Plein écran",
         "routeReplay": {
           "title": "Relecture de l'itinéraire",
           "noData": "Aucune donnée d'itinéraire enregistrée pour ce trajet.",

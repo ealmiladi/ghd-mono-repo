@@ -246,6 +246,7 @@
         "savedTrip": "¡El viaje se ha guardado con éxito! 🚀",
         "savedTripError": "Error al guardar los datos del viaje.",
         "fullscreenHud": "Panel a pantalla completa",
+        "fullScreenButton": "Pantalla completa",
         "routeReplay": {
           "title": "Repetición de ruta",
           "noData": "No se capturaron datos de ruta para este viaje.",

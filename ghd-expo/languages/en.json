@@ -280,6 +280,7 @@
         "savedTrip": "Trip has been saved successfully! \uD83D\uDE80",
         "savedTripError": "Error saving trip data.",
         "fullscreenHud": "Fullscreen HUD",
+        "fullScreenButton": "Full Screen",
         "routeReplay": {
           "title": "Route replay",
           "noData": "No route data captured for this trip.",
