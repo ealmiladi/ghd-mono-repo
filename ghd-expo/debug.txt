@@ -1,0 +1,910 @@
+import { Controller } from '@/interfaces/Controller';
+import { Dimensions, Modal, View, useWindowDimensions } from 'react-native';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import { Text } from '@/components/ui/text';
+import { HStack } from '@/components/ui/hstack';
+import { useDevices } from '@/providers/BluetoothProvider';
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
+import { Device } from 'react-native-ble-plx';
+import {
+    ControllerState,
+    CurrentTrip,
+} from '@/fardriver/interfaces/ControllerState';
+import Animated, {
+    FadeIn,
+    FadeOut,
+    interpolate,
+    useAnimatedStyle,
+    useDerivedValue,
+    useSharedValue,
+    withTiming,
+} from 'react-native-reanimated';
+import BatteryBar from '@/components/dashboard/BatteryBar';
+import AnimatedBike from './AnimatedBike';
+import NumberTicker from '@/components/dashboard/NumberTicker';
+import ControllerScrollView from '@/components/dashboard/ControllerScrollView';
+import ControllerHeaderInformation from '@/components/dashboard/ControllerHeaderInformation';
+import { useTranslation } from 'react-i18next';
+import { useUser } from '@/providers/UserContextProvider';
+import BigNumber from 'bignumber.js';
+import { Icon } from '@/components/ui/icon';
+import useLocation, { LocationSample } from '@/hooks/useLocation';
+import {
+    SafeAreaView,
+    useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+import ControllerLandscapeView from '@/components/dashboard/ControllerLandscapeView';
+import GearPortion from '@/components/dashboard/GearPortion';
+import { Button, ButtonText } from '@/components/ui/button';
+import { useColorScheme } from 'react-native';
+import firestore from '@react-native-firebase/firestore';
+import Toast from 'react-native-toast-message';
+import { toFixed } from '@/utils';
+import { IS_SIMULATOR_MODE } from '@/utils/env';
+import {
+    LucideLocateFixed,
+    LucideTimerOff,
+    LucideX,
+} from 'lucide-react-native';
+import { Spinner } from '@/components/ui/spinner';
+import ControllerPortraitView from '@/components/dashboard/ControllerPortraitView';
+import type { TripSummary } from '@/components/dashboard/types';
+import FullscreenHud from '@/components/dashboard/FullscreenHud';
+
+const AnimatedText = Animated.createAnimatedComponent(Text);
+const AnimatedHStack = Animated.createAnimatedComponent(HStack);
+
+const FROM_TOP = 234.66;
+const HUD_BACKGROUND_LIGHT = '#f8fafc';
+const HUD_BACKGROUND_DARK = '#020817';
+
+const ControllerPage = ({ controller }: { controller: Controller }) => {
+    const insets = useSafeAreaInsets();
+    const paddingTop = FROM_TOP + insets.top;
+    const { prefersMph, prefersFahrenheit } = useUser();
+    const { t } = useTranslation();
+
+    const { name, localName } = controller;
+    const {
+        connectedDevices,
+        deviceLoadingStates,
+        controllerStates,
+        isScanning,
+    } = useDevices();
+    const locationCleanupRef = useRef<(() => void) | null>(null);
+
+    const [currentGear, setCurrentGear] = useState<string | null>(null);
+    const [currentGearPower, setCurrentGearPower] = useState<string | null>(
+        null
+    );
+
+    const [batteryVoltage, setBatteryVoltage] = useState<string | null>(null);
+    const [batterySoc, setBatterySoc] = useState<string | null>(null);
+    const [maxLineCurrent, setMaxLineCurrent] = useState<string | null>(null);
+    const [maxPhaseCurrent, setMaxPhaseCurrent] = useState<string | null>(null);
+
+    const [currentTrip, setCurrentTrip] = useState<CurrentTrip | null>(null);
+    const calculatedSpeedSharedValue = useSharedValue(0);
+    const rpmSharedValue = useSharedValue(0);
+    const maxSpeedInRPM = useSharedValue(0);
+    const wattsSharedValue = useSharedValue(0);
+    const polePairsSharedValue = useSharedValue(0);
+    const motorCutoffApplied = useSharedValue<boolean>(false);
+    const [isHudVisible, setHudVisible] = useState(false);
+    const [endingTrip, setEndingTrip] = useState(false);
+    const colorScheme = useColorScheme();
+    const [voltageSag, setVoltageSag] = useState(0);
+
+    const handleLocationSample = useCallback(
+        ({ location, timestamp }: LocationSample) => {
+            const stateForController: ControllerState | undefined =
+                controllerStates.current[controller.localName];
+
+            if (!stateForController?.currentTrip) {
+                return;
+            }
+
+            const { latitude, longitude, altitude, heading, speed } =
+                location.coords;
+
+            if (
+                latitude === undefined ||
+                longitude === undefined ||
+                Number.isNaN(latitude) ||
+                Number.isNaN(longitude)
+            ) {
+                return;
+            }
+
+            stateForController.currentTrip.recordRoutePoint({
+                timestamp,
+                latitude,
+                longitude,
+                altitude: altitude ?? null,
+                heading: heading ?? null,
+                speedMps: speed ?? null,
+                lineCurrent:
+                    stateForController.lineCurrent !== undefined
+                        ? Number(stateForController.lineCurrent)
+                        : null,
+                voltage:
+                    stateForController.voltage !== undefined
+                        ? Number(stateForController.voltage)
+                        : null,
+                inputPower:
+                    stateForController.inputPower !== undefined
+                        ? Number(stateForController.inputPower)
+                        : null,
+                mosTemperature:
+                    stateForController.mosTemperatureCelcius !== undefined
+                        ? Number(stateForController.mosTemperatureCelcius)
+                        : null,
+                motorTemperature:
+                    stateForController.motorTemperatureCelcius !== undefined
+                        ? Number(stateForController.motorTemperatureCelcius)
+                        : null,
+            });
+
+            stateForController.currentTrip.publishTripUpdate();
+
+            if (speed !== null && speed !== undefined && speed >= 0) {
+                stateForController.currentTrip?.recordGpsSpeed(speed);
+
+                if (controller.preferGpsSpeed) {
+                    const displaySpeed = prefersMph
+                        ? speed * 2.23694
+                        : speed * 3.6;
+                    calculatedSpeedSharedValue.value = parseInt(displaySpeed);
+                }
+            }
+        },
+        [
+            calculatedSpeedSharedValue,
+            controller.localName,
+            controller.preferGpsSpeed,
+            controllerStates,
+            prefersMph,
+        ]
+    );
+
+    const { listen, maxSpeed } = useLocation(
+        calculatedSpeedSharedValue,
+        prefersMph,
+        handleLocationSample
+    );
+
+    const [controllerFaults, setControllerFaults] = useState<
+        { title: string; description: string }[]
+    >([]);
+
+    const endCurrentTrip = useCallback(async () => {
+        if (endingTrip) {
+            return;
+        }
+        try {
+            setEndingTrip(true);
+            const currentState =
+                controllerStates.current?.[controller.localName];
+            currentState?.currentTrip?.performEndTripCalculations();
+            const tripToSave = currentState?.currentTrip || currentTrip;
+            if (!tripToSave) {
+                return;
+            }
+
+            if (IS_SIMULATOR_MODE) {
+                currentState?.endTrip();
+                setCurrentTrip(null);
+                setHudVisible(false);
+                Toast.show({
+                    type: 'success',
+                    text1: t('common.saved'),
+                    text2: t('trip.savedTrip'),
+                });
+                return;
+            }
+
+            await firestore()
+                .collection('controllers')
+                .doc(controller.serialNumber)
+                .collection('trips')
+                .add(JSON.parse(JSON.stringify(tripToSave)));
+
+            currentState?.endTrip();
+            setCurrentTrip(null);
+            setHudVisible(false);
+
+            Toast.show({
+                type: 'success',
+                text1: t('common.saved'),
+                text2: t('trip.savedTrip'),
+            });
+        } catch (error) {
+            console.error(error);
+            Toast.show({
+                type: 'error',
+                text1: t('common.error'),
+                text2: t('trip.savedTripError'),
+            });
+        } finally {
+            setEndingTrip(false);
+        }
+    }, [
+        controller.localName,
+        controller.serialNumber,
+        controllerStates,
+        currentTrip,
+        endingTrip,
+        t,
+    ]);
+
+    const device = useMemo(
+        () =>
+            connectedDevices.find(
+                (device: Device) => device.name === localName
+            ),
+        [connectedDevices, localName]
+    );
+
+    useEffect(() => {
+        if (device) {
+            const state: ControllerState =
+                controllerStates.current[controller.localName];
+
+            const parseIntegerValue = (value: any) => {
+                if (typeof value === 'number') {
+                    return value;
+                }
+                if (typeof value === 'string') {
+                    return parseInt(value, 10);
+                }
+                if (value && typeof value.toString === 'function') {
+                    const parsed = parseInt(value.toString(), 10);
+                    return parsed;
+                }
+                return Number.NaN;
+            };
+
+            state.onReceive('gearMode', setCurrentGear);
+
+            state.onReceive('gearPowerMode', setCurrentGearPower);
+            state.onReceive('controllerFaults', setControllerFaults);
+            state.onReceive('soc', setBatterySoc);
+            state.onReceive('voltage', setBatteryVoltage);
+            state.onReceive('maxLineCurrent', setMaxLineCurrent);
+            state.onReceive('maxPhaseCurrent', setMaxPhaseCurrent);
+            state.onReceive('voltageSag', (value: any) => {
+                try {
+                    if (value == null) {
+                        setVoltageSag(0);
+                    } else if (typeof value === 'number') {
+                        setVoltageSag(value);
+                    } else if (typeof value === 'string') {
+                        setVoltageSag(Number(value));
+                    } else if (value?.toNumber) {
+                        setVoltageSag(value.toNumber());
+                    } else {
+                        setVoltageSag(Number(value));
+                    }
+                } catch (error) {
+                    console.error('Error parsing voltage sag', error);
+                    setVoltageSag(0);
+                }
+            });
+
+            state.onReceive('motorCutoffApplied', (value: boolean) => {
+                motorCutoffApplied.value = value;
+            });
+
+            state.onReceive('maxSpeed', (value: any) => {
+                const parsed = parseIntegerValue(value);
+                if (Number.isNaN(parsed)) {
+                    maxSpeedInRPM.value = 0;
+                    return;
+                }
+                if (polePairsSharedValue.value >= 16) {
+                    maxSpeedInRPM.value = Math.trunc(
+                        (parsed * 4) / polePairsSharedValue.value
+                    );
+                } else {
+                    maxSpeedInRPM.value = parsed;
+                }
+            });
+
+            state.onReceive('currentTrip', (trip: CurrentTrip | null) => {
+                if (!trip) {
+                    if (!IS_SIMULATOR_MODE) {
+                        locationCleanupRef.current?.();
+                        locationCleanupRef.current = null;
+                    }
+                    setCurrentTrip(null);
+                    return;
+                }
+
+                if (!IS_SIMULATOR_MODE && !locationCleanupRef.current) {
+                    listen()
+                        .then((cleanup) => {
+                            if (cleanup) {
+                                locationCleanupRef.current = cleanup;
+                            }
+                        })
+                        .catch((error) => {
+                            console.warn('Location listener error', error);
+                        });
+                }
+
+                setCurrentTrip(trip);
+                trip.registerTripObserver((updatedTrip) => {
+                    const copiedTrip: any = { ...updatedTrip };
+                    if (polePairsSharedValue.value >= 16) {
+                        const adjustedMax = Math.trunc(
+                            (Number(updatedTrip.maxRPM) * 4) /
+                                polePairsSharedValue.value
+                        );
+                        copiedTrip.maxRPM = adjustedMax;
+                    }
+                    setCurrentTrip(copiedTrip);
+                });
+            });
+
+            state.onReceive('rpms', (value: any) => {
+                const parsed = parseIntegerValue(value);
+                if (Number.isNaN(parsed)) {
+                    rpmSharedValue.value = 0;
+                    return;
+                }
+                if (polePairsSharedValue.value >= 16) {
+                    rpmSharedValue.value = Math.trunc(
+                        (parsed * 4) / polePairsSharedValue.value
+                    );
+                } else {
+                    rpmSharedValue.value = parsed;
+                }
+            });
+
+            state.onReceive('inputPower', (value: any) => {
+                const parsed = parseIntegerValue(value);
+                wattsSharedValue.value = Number.isNaN(parsed) ? 0 : parsed;
+            });
+
+            if (!controller.preferGpsSpeed) {
+                state.onReceive('calculatedSpeed', (value: any) => {
+                    const nextSpeed = prefersMph ? value?.mph : value?.kph;
+                    const parsed = parseIntegerValue(nextSpeed);
+                    calculatedSpeedSharedValue.value = Number.isNaN(parsed)
+                        ? 0
+                        : parsed;
+                });
+            }
+
+            state.onReceive(
+                'motorPolePairs',
+                (value) => (polePairsSharedValue.value = parseInt(value))
+            );
+
+            return () => {
+                locationCleanupRef.current?.();
+                locationCleanupRef.current = null;
+                state.allOff();
+            };
+        } else {
+            setControllerFaults([]);
+            setCurrentGear(null);
+            setCurrentGearPower(null);
+            setBatteryVoltage(null);
+            setBatterySoc(null);
+            setCurrentTrip(null);
+            calculatedSpeedSharedValue.value = 0;
+            rpmSharedValue.value = 0;
+            wattsSharedValue.value = 0;
+            polePairsSharedValue.value = 0;
+            maxSpeedInRPM.value = 0;
+            setVoltageSag(0);
+        }
+    }, [
+        calculatedSpeedSharedValue,
+        controller.localName,
+        controller.serialNumber,
+        controllerStates,
+        device,
+        maxSpeedInRPM,
+        polePairsSharedValue,
+        rpmSharedValue,
+        prefersMph,
+        wattsSharedValue,
+        motorCutoffApplied,
+        listen,
+        controller.preferGpsSpeed,
+        maxSpeed,
+    ]);
+
+    const batteryColor = useMemo(() => {
+        if (batterySoc == null) {
+            return 'text-secondary-300';
+        }
+        if (parseInt(batterySoc) > 50) {
+            return 'text-secondary-500';
+        }
+        if (parseInt(batterySoc) > 20) {
+            return 'text-yellow-600';
+        }
+        return 'text-red-500';
+    }, [batterySoc]);
+
+    const tripSummary = useMemo(() => {
+        if (!currentTrip) {
+            return null;
+        }
+
+        const distanceMeters = currentTrip.distanceInMeters?.toNumber?.() ?? 0;
+        const distance = toFixed(
+            distanceMeters * (prefersMph ? 0.000621371 : 0.001)
+        );
+
+        const remainingMeters =
+            currentTrip.estimatedDistanceRemainingInMeters?.toNumber?.() ?? 0;
+        const remaining = toFixed(
+            remainingMeters * (prefersMph ? 0.000621371 : 0.001),
+            0
+        );
+
+        const cumulativeEnergy = toFixed(
+            currentTrip.cumulativeEnergyWh?.toNumber?.() ?? 0
+        );
+
+        const maxSpeed = toFixed(
+            (currentTrip.maxSpeedInMeters?.toNumber?.() ?? 0) *
+                (prefersMph ? 2.23694 : 3.6),
+            0
+        );
+
+        const avgSpeed = toFixed(
+            (currentTrip.avgSpeed?.toNumber?.() ?? 0) *
+                (prefersMph ? 2.23694 : 3.6),
+            0
+        );
+
+        const avgPower = toFixed(currentTrip.avgPower?.toNumber?.() ?? 0, 0);
+
+        const maxSag = toFixed(currentTrip.maxVoltageSag?.toNumber?.() ?? 0, 1);
+
+        const gpsSampleCount = Number(
+            (currentTrip.gpsSampleCount as any)?.toNumber?.() ??
+                currentTrip.gpsSampleCount ??
+                0
+        );
+        const gpsMaxSpeed = toFixed(
+            Number(
+                (currentTrip.gpsMaxSpeedInMeters as any)?.toNumber?.() ??
+                    currentTrip.gpsMaxSpeedInMeters ??
+                    0
+            ) * (prefersMph ? 2.23694 : 3.6),
+            0
+        );
+        const gpsAvgSpeed = toFixed(
+            Number(
+                (currentTrip.gpsAvgSpeed as any)?.toNumber?.() ??
+                    currentTrip.gpsAvgSpeed ??
+                    0
+            ) * (prefersMph ? 2.23694 : 3.6),
+            0
+        );
+
+        const distanceForWh = currentTrip.distanceInMeters?.toNumber?.() ?? 0;
+        const energyForWh = currentTrip.cumulativeEnergyWh?.toNumber?.() ?? 0;
+        const whPerUnit = toFixed(
+            (energyForWh / distanceForWh) * (prefersMph ? 1609.34 : 1000),
+            0
+        );
+
+        return {
+            distance,
+            remaining,
+            cumulativeEnergy,
+            maxSpeed,
+            avgSpeed,
+            avgPower,
+            whPerUnit,
+            startTime: Number(currentTrip.startTime || 0),
+            maxVoltageSag: maxSag,
+            gpsMaxSpeed,
+            gpsAvgSpeed,
+            gpsSampleCount,
+        };
+    }, [currentTrip, prefersMph]);
+
+    useEffect(() => {
+        if (IS_SIMULATOR_MODE) {
+            setTimeout(() => {
+                if (!currentTrip) {
+                    setCurrentTrip({
+                        avgPower: 100,
+                        avgSpeed: 20,
+                        cumulativeEnergyWh: new BigNumber(1000),
+                        distanceInMeters: new BigNumber(1000),
+                        maxRPM: 1000,
+                        maxSpeedInMeters: 20,
+                        startVoltage: 50,
+                        startTime: Date.now(),
+                        maxLineCurrent: 100,
+                        endVoltage: 40,
+                        estimatedDistanceRemainingInMeters: new BigNumber(1010),
+                        maxInputPower: 1000,
+                        performEndTripCalculations: () => {},
+                    } as any);
+                }
+                const interval = setInterval(() => {
+                    if (
+                        calculatedSpeedSharedValue.value > 120 &&
+                        calculatedSpeedSharedValue.value > 100
+                    ) {
+                        calculatedSpeedSharedValue.value =
+                            calculatedSpeedSharedValue.value - 10;
+                    } else {
+                        calculatedSpeedSharedValue.value =
+                            calculatedSpeedSharedValue.value + 1;
+                    }
+                    rpmSharedValue.value =
+                        calculatedSpeedSharedValue.value * 12;
+                    wattsSharedValue.value =
+                        calculatedSpeedSharedValue.value * 24;
+
+                    lineCurrent.value =
+                        calculatedSpeedSharedValue.value * 2 * -1;
+                    phaseACurrent.value = calculatedSpeedSharedValue.value * 2;
+                }, 100);
+                return () => clearInterval(interval);
+            }, 3000);
+        }
+    }, [
+        calculatedSpeedSharedValue,
+        currentTrip,
+        rpmSharedValue,
+        wattsSharedValue,
+    ]);
+
+    const hasReceivedBatteryInformation =
+        device && batterySoc !== null && batteryVoltage !== null;
+
+    const scrollPosition = useSharedValue(0);
+
+    const animatedView = useAnimatedStyle(() => {
+        return {
+            opacity: interpolate(
+                scrollPosition.value,
+                [0, paddingTop / 2, paddingTop],
+                [1, 0.3, 0]
+            ),
+        };
+    }, [scrollPosition, insets, paddingTop]);
+
+    const animatedBikeView = useAnimatedStyle(() => {
+        return {
+            opacity: interpolate(
+                scrollPosition.value,
+                [0, paddingTop / 4, paddingTop],
+                [1, 0.15, 0]
+            ),
+        };
+    }, [scrollPosition]);
+
+    const animatedBikeOpacity = useDerivedValue(() => {
+        if (!device) {
+            return withTiming(0.2, { duration: 500 });
+        }
+        if (scrollPosition.value === 0 && device) {
+            return withTiming(1, { duration: 2500 });
+        }
+        return interpolate(
+            scrollPosition.value,
+            [0, paddingTop / 4, paddingTop],
+            [1, 0.15, 0]
+        );
+    }, [device, scrollPosition]);
+
+    const [isLandscape, setIsLandscape] = useState(
+        Dimensions.get('window').width > Dimensions.get('window').height
+    );
+
+    useEffect(() => {
+        const handleOrientationChange = () => {
+            const { width, height } = Dimensions.get('window');
+            const isLandscape = width > height;
+            if (isLandscape) {
+                activateKeepAwakeAsync().catch(() => {});
+            } else {
+                deactivateKeepAwake().catch(() => {});
+            }
+            setIsLandscape(isLandscape);
+        };
+
+        const sub = Dimensions.addEventListener(
+            'change',
+            handleOrientationChange
+        );
+
+        return () => {
+            sub.remove();
+        };
+    }, []);
+
+    const [motorTemperatureCelcius, setMotorTemperatureCelcius] = useState<
+        number | undefined
+    >(undefined);
+    const [mosTemperatureCelcius, setMosTemperatureCelcius] = useState<
+        number | undefined
+    >(undefined);
+    const phaseACurrent = useSharedValue(0);
+    const phaseCCurrent = useSharedValue(0);
+    const lineCurrent = useSharedValue(0);
+
+    const animatedMphStyle = useAnimatedStyle(() => {
+        return {
+            opacity:
+                rpmSharedValue.value > 0 || (isLandscape && device)
+                    ? withTiming(1, { duration: 500 })
+                    : withTiming(0, { duration: 500 }),
+        };
+    }, [rpmSharedValue, isLandscape, device]);
+
+    useEffect(() => {
+        if (isLandscape && device) {
+            const state: ControllerState =
+                controllerStates.current[controller.localName];
+            state.onReceive('lineCurrent', (value: string) => {
+                lineCurrent.value = parseInt(value);
+            });
+            state.onReceive('phaseACurrent', (value: string) => {
+                phaseACurrent.value = parseInt(value);
+            });
+            state.onReceive('phaseCCurrent', (value: string) => {
+                phaseCCurrent.value = parseInt(value);
+            });
+            state.onReceive('mosTemperatureCelcius', setMosTemperatureCelcius);
+            state.onReceive(
+                'motorTemperatureCelcius',
+                setMotorTemperatureCelcius
+            );
+            return () => {
+                state.off('lineCurrent');
+                state.off('phaseACurrent');
+                state.off('phaseCCurrent');
+            };
+        }
+    }, [
+        controller.localName,
+        controllerStates,
+        device,
+        isLandscape,
+        lineCurrent,
+        phaseACurrent,
+        phaseCCurrent,
+    ]);
+
+    if (isLandscape) {
+        return (
+            <ControllerLandscapeView
+                {...{
+                    currentTrip,
+                    animatedMphStyle,
+                    polePairsSharedValue,
+                    maxSpeedInRPM,
+                    prefersMph,
+                    prefersFahrenheit,
+                    animatedBikeOpacity,
+                    device,
+                    name,
+                    motorCutoffApplied,
+                    hasReceivedBatteryInformation,
+                    batteryColor,
+                    rpmSharedValue,
+                    wattsSharedValue,
+                    calculatedSpeedSharedValue,
+                    insets,
+                    controller,
+                    controllerFaults,
+                    currentGear,
+                    currentGearPower,
+                    batteryVoltage,
+                    batterySoc,
+                    maxLineCurrent,
+                    maxPhaseCurrent,
+                    motorTemperatureCelcius,
+                    mosTemperatureCelcius,
+                    lineCurrent,
+                    phaseACurrent,
+                    phaseCCurrent,
+                    voltageSag,
+                }}
+            />
+        );
+    }
+
+    return (
+        <View className="flex-1">
+            <ControllerScrollView
+                {...{
+                    device,
+                    paddingTop,
+                    scrollPosition,
+                    controllerFaults,
+                    currentTrip,
+                    controller,
+                    onEndTrip: endCurrentTrip,
+                    isEndingTrip: endingTrip,
+                    onOpenHud: () => setHudVisible(true),
+                }}
+            />
+            <Animated.View
+                style={[
+                    animatedView,
+                    {
+                        paddingTop: insets.top,
+                    },
+                ]}
+                className="absolute w-full px-4"
+            >
+                <ControllerHeaderInformation
+                    {...{
+                        name,
+                        localName,
+                        device,
+                    }}
+                />
+                <View className="h-2" />
+                <View>
+                    {hasReceivedBatteryInformation ? (
+                        <Animated.View
+                            entering={FadeIn.duration(500)}
+                            exiting={FadeOut}
+                        >
+                            <View className="flex-row items-center gap-2">
+                                <View className="w-20 mr-2">
+                                    <BatteryBar
+                                        height={24}
+                                        socPercentage={parseInt(batterySoc!)}
+                                    />
+                                </View>
+                                <Text
+                                    className={`${batteryColor} flex-1 text-lg font-bold`}
+                                >
+                                    {batteryVoltage}V
+                                </Text>
+                                {!controllerFaults.length && (
+                                    <AnimatedText
+                                        entering={FadeIn}
+                                        exiting={FadeOut}
+                                        className={`text-secondary-500 text-lg font-bold`}
+                                    >
+                                        {t('common.ready')}
+                                    </AnimatedText>
+                                )}
+                                {!!controllerFaults.length && (
+                                    <AnimatedText
+                                        entering={FadeIn}
+                                        exiting={FadeOut}
+                                        className={`text-error-500 text-lg font-bold`}
+                                    >
+                                        {t('common.faultDetected')}
+                                    </AnimatedText>
+                                )}
+                            </View>
+                        </Animated.View>
+                    ) : (
+                        <View style={{ height: 24.7 }}>
+                            {!!deviceLoadingStates[localName] && (
+                                <Text className="text-secondary-500 text-lg font-bold">
+                                    {t('common.connecting')}
+                                </Text>
+                            )}
+                            {!deviceLoadingStates[localName] && !device && (
+                                <>
+                                    {isScanning && (
+                                        <Text className="text-secondary-500 text-lg font-bold">
+                                            {t('common.searching')}
+                                        </Text>
+                                    )}
+                                    {!isScanning && (
+                                        <Text className="text-secondary-500 text-lg font-bold">
+                                            {t('common.noConnection')}
+                                        </Text>
+                                    )}
+                                </>
+                            )}
+                        </View>
+                    )}
+                </View>
+
+                <GearPortion
+                    motorCutoffApplied={motorCutoffApplied}
+                    currentGear={currentGear}
+                    currentGearPower={currentGearPower}
+                    hasReceivedBatteryInformation={
+                        hasReceivedBatteryInformation
+                    }
+                />
+
+                <AnimatedHStack
+                    className="h-40 relative items-center"
+                    style={animatedBikeView}
+                >
+                    <View className="absolute">
+                        <AnimatedBike
+                            gearMode={currentGear}
+                            animatedBikeOpacity={animatedBikeOpacity}
+                            maxSpeedInRPM={maxSpeedInRPM}
+                            polePairsSharedValue={polePairsSharedValue}
+                            rpmSharedValue={rpmSharedValue}
+                            wattsSharedValue={wattsSharedValue}
+                            calculatedSpeedSharedValue={
+                                calculatedSpeedSharedValue
+                            }
+                        />
+                    </View>
+                    <Animated.View className="w-48" style={[animatedMphStyle]}>
+                        <NumberTicker
+                            sharedValue={calculatedSpeedSharedValue}
+                            width={192}
+                        />
+                        <HStack className="items-center mt-2 gap-1">
+                            {controller.preferGpsSpeed && (
+                                <Icon
+                                    size={24}
+                                    as={LucideLocateFixed}
+                                    className="text-secondary-500"
+                                />
+                            )}
+                            <Text className="text-secondary-500 text-xl font-bold">
+                                {prefersMph ? 'MPH' : 'KPH'}
+                            </Text>
+                        </HStack>
+                    </Animated.View>
+                </AnimatedHStack>
+            </Animated.View>
+            <FullscreenHud
+                visible={isHudVisible}
+                onClose={() => setHudVisible(false)}
+                onEndTrip={endCurrentTrip}
+                isEndingTrip={endingTrip}
+                controller={controller}
+                controllerFaults={controllerFaults}
+                currentTrip={currentTrip}
+                device={device}
+                batteryVoltage={batteryVoltage}
+                batterySoc={batterySoc}
+                batteryColor={batteryColor}
+                hasReceivedBatteryInformation={hasReceivedBatteryInformation}
+                currentGear={currentGear}
+                currentGearPower={currentGearPower}
+                lineCurrent={lineCurrent}
+                phaseACurrent={phaseACurrent}
+                phaseCCurrent={phaseCCurrent}
+                maxLineCurrent={maxLineCurrent}
+                maxPhaseCurrent={maxPhaseCurrent}
+                motorTemperatureCelcius={motorTemperatureCelcius}
+                mosTemperatureCelcius={mosTemperatureCelcius}
+                calculatedSpeedSharedValue={calculatedSpeedSharedValue}
+                rpmSharedValue={rpmSharedValue}
+                wattsSharedValue={wattsSharedValue}
+                polePairsSharedValue={polePairsSharedValue}
+                maxSpeedInRPM={maxSpeedInRPM}
+                animatedBikeOpacity={animatedBikeOpacity}
+                animatedMphStyle={animatedMphStyle}
+                prefersMph={prefersMph}
+                prefersFahrenheit={prefersFahrenheit}
+                tripSummary={tripSummary}
+                isScanning={isScanning}
+                colorScheme={colorScheme}
+                motorCutoffApplied={motorCutoffApplied}
+                voltageSag={voltageSag}
+            />
+        </View>
+    );
+};
+
+export default ControllerPage;

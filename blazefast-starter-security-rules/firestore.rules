@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // User-specific data rules
+    match /users/{userId} {
+      // Ensure the user can only read or write their own document
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Controller-specific data rules
+    match /controllers/{controllerId} {
+      // Allow authenticated users to attempt a get operation, even if the document is empty
+      allow get: if request.auth != null;
+
+      match /trips/{tripId} {
+      	allow read, write: if request.auth != null &&
+              (request.auth.uid in get(/databases/$(database)/documents/controllers/$(controllerId)).data.boundUserIds ||
+              request.auth.uid in get(/databases/$(database)/documents/controllers/$(controllerId)).data.ownerIds);
+      }
+
+      // Allow read for specific fields if the document exists
+      allow read: if request.auth != null &&
+        resource.data != null &&
+        (resource.data.allowAnonymousBinding == true ||
+         request.auth.uid in resource.data.boundUserIds ||
+         request.auth.uid in resource.data.ownerIds);
+
+       allow write: if request.auth != null && (
+        (
+          resource.data != null &&
+          request.auth.uid in resource.data.ownerIds
+        ) ||
+        (
+          resource.data != null &&
+          resource.data.allowAnonymousBinding == true &&
+          request.resource.data.keys().hasOnly(['boundUserIds'])
+        )
+      );
+
+      // Allow authenticated users to create a new document
+      allow create: if request.auth != null;
+    }
+  }
+}

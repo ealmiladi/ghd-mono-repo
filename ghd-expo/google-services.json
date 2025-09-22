@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "883188168454",
+    "project_id": "ghdriver-eaf64",
+    "storage_bucket": "ghdriver-eaf64.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:883188168454:android:e59cef535fc67459195087",
+        "android_client_info": {
+          "package_name": "app.ghdriver.android"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "883188168454-dpm8cvgaisi5r8hhmr7p15rdmj0fe3o8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "app.ghdriver.android",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "883188168454-8cq87gnaoanjg4299j6qhuqifv1hf48p.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBnlWpbTDyrAJGMtSu4dpgHD7n3FHuE6yE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "883188168454-8cq87gnaoanjg4299j6qhuqifv1hf48p.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "883188168454-dg050a3lcvdm035qqqbi81c159gr87ou.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "app.ghdriver.ios"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

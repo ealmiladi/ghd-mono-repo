@@ -1,0 +1,10 @@
+{
+  "hosting": {
+    "public": "ghd-web-splash",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}
