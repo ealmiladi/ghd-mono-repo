@@ -25,9 +25,6 @@ const MainApplicationContainer = () => {
     const { user, controllers, loadingControllers, loadingUserState } =
         useUser();
 
-    console.log('MainApplicationContainer - loadingUserState:', loadingUserState);
-    console.log('MainApplicationContainer - user:', user?.uid, user?.email);
-
     if (loadingUserState) {
         return (
             <View
