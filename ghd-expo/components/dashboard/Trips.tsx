@@ -296,6 +296,7 @@ const TripWithToast = memo(({ route, navigation }: any) => {
     const { prefersMph, prefersFahrenheit } = useUser();
     const { t } = useTranslation();
     const [confirmModalOpen, setConfirmModalOpen] = React.useState(false);
+
     const {
         id,
         distanceInMeters,
@@ -308,94 +309,104 @@ const TripWithToast = memo(({ route, navigation }: any) => {
         endVoltage,
         maxLineCurrent,
         maxInputPower,
-        maxInputPowerVoltage,
-        maxInputPowerCurrent,
         maxRPM,
         ratedVoltage,
         motorPolePairs,
         route: rawRoute = [],
-    } = route.params.trip as CurrentTrip;
-    // Calculated and formatted values using BigNumber
-    const distance = new BigNumber(distanceInMeters)
-        .multipliedBy(prefersMph ? 0.000621371 : 0.001) // Convert meters to miles/kilometers
-        .toFixed(1);
+        gpsMaxSpeedInMeters,
+        gpsAvgSpeed,
+        gpsSampleCount,
+        maxVoltageSag,
+    } = route.params.trip as CurrentTrip & {
+        gpsMaxSpeedInMeters?: number;
+        gpsAvgSpeed?: number;
+        gpsSampleCount?: number;
+        maxVoltageSag?: number;
+    };
 
-    const maxSpeed = new BigNumber(maxSpeedInMeters)
-        .multipliedBy(prefersMph ? 2.23694 : 3.6) // Convert m/s to mph/km/h
-        .toFixed(0);
+    const distanceValue = new BigNumber(distanceInMeters)
+        .multipliedBy(prefersMph ? 0.000621371 : 0.001)
+        .toNumber();
+    const distanceDisplay = `${toFixed(distanceValue, 1)} ${
+        prefersMph ? t('common.miles') : t('common.kilometers')
+    }`;
 
-    const avgSpeed = new BigNumber(avgSpeedInMeters)
-        .multipliedBy(prefersMph ? 2.23694 : 3.6) // Convert m/s to mph/km/h
-        .toFixed(0);
-
-    const cumulativeEnergy = new BigNumber(cumulativeEnergyWh).toFixed(2);
-    const gpsMaxSpeedInMeters = new BigNumber(
-        route.params.trip.gpsMaxSpeedInMeters || 0
-    );
-    const gpsAvgSpeedInMeters = new BigNumber(
-        route.params.trip.gpsAvgSpeed || 0
-    );
-    const gpsSampleCount = new BigNumber(
-        route.params.trip.gpsSampleCount || 0
-    ).toNumber();
-    const gpsMaxSpeedFormatted = gpsMaxSpeedInMeters
+    const maxSpeedValue = new BigNumber(maxSpeedInMeters)
         .multipliedBy(prefersMph ? 2.23694 : 3.6)
-        .toFixed(0);
-    const gpsAvgSpeedFormatted = gpsAvgSpeedInMeters
+        .toNumber();
+    const avgSpeedValue = new BigNumber(avgSpeedInMeters)
         .multipliedBy(prefersMph ? 2.23694 : 3.6)
-        .toFixed(0);
+        .toNumber();
+    const wheelSpeedUnit = prefersMph ? 'mph' : 'km/h';
+    const maxSpeedDisplay = `${toFixed(maxSpeedValue, 0)} ${wheelSpeedUnit}`;
+    const avgSpeedDisplay = `${toFixed(avgSpeedValue, 0)} ${wheelSpeedUnit}`;
 
-    const maxRPMFormatted = useMemo(() => {
+    const cumulativeEnergyDisplay = `${toFixed(
+        new BigNumber(cumulativeEnergyWh).toNumber(),
+        2
+    )} Wh`;
+
+    const gpsSamples = new BigNumber(gpsSampleCount || 0).toNumber();
+    const gpsMaxSpeedDisplay = gpsSamples
+        ? `${toFixed(
+              new BigNumber(gpsMaxSpeedInMeters || 0)
+                  .multipliedBy(prefersMph ? 2.23694 : 3.6)
+                  .toNumber(),
+              0
+          )} ${wheelSpeedUnit}`
+        : null;
+    const gpsAvgSpeedDisplay = gpsSamples
+        ? `${toFixed(
+              new BigNumber(gpsAvgSpeed || 0)
+                  .multipliedBy(prefersMph ? 2.23694 : 3.6)
+                  .toNumber(),
+              0
+          )} ${wheelSpeedUnit}`
+        : null;
+
+    const maxRPMValue = (() => {
         if (BigNumber(motorPolePairs).gte(16)) {
-            const rpmsAdjustedForPolePairs = new BigNumber(maxRPM)
+            return new BigNumber(maxRPM)
                 .multipliedBy(4)
                 .dividedBy(motorPolePairs)
-                .toFixed(2);
-            return rpmsAdjustedForPolePairs;
+                .toNumber();
         }
-        return new BigNumber(maxRPM).toFixed(2);
-    }, [maxRPM, motorPolePairs]);
+        return new BigNumber(maxRPM).toNumber();
+    })();
 
-    const startVoltageFormatted = new BigNumber(startVoltage).toFixed(2);
-    const endVoltageFormatted = new BigNumber(endVoltage).toFixed(2);
-    const maxLineCurrentFormatted = new BigNumber(maxLineCurrent).toFixed(2);
-    const maxInputPowerFormatted = new BigNumber(maxInputPower).toFixed(0);
-    const maxInputPowerVoltageFormatted = new BigNumber(
-        maxInputPowerVoltage
-    ).toFixed(2);
-    const maxInputPowerCurrentFormatted = new BigNumber(
-        maxInputPowerCurrent
-    ).toFixed(2);
-    const maxVoltageSag = new BigNumber(
-        route.params.trip.maxVoltageSag || 0
-    ).toFixed(1);
+    const startVoltageValue = new BigNumber(startVoltage).toNumber();
+    const endVoltageValue = new BigNumber(endVoltage).toNumber();
+    const maxLineCurrentValue = new BigNumber(maxLineCurrent).toNumber();
+    const maxInputPowerValue = new BigNumber(maxInputPower).toNumber();
+    const maxVoltageSagValue = new BigNumber(maxVoltageSag || 0).toNumber();
 
-    const tripDuration = endTime
+    const tripDurationMinutes = endTime
         ? new BigNumber((Number(endTime) || 0) - Number(startTime || 0))
-              .dividedBy(60000) // Convert milliseconds to minutes
-              .toFixed(1) + ' min'
-        : 'Ongoing';
+              .dividedBy(60000)
+              .toNumber()
+        : null;
+    const tripDurationDisplay = tripDurationMinutes
+        ? `${toFixed(tripDurationMinutes, 1)} min`
+        : t('trip.stats.ongoing', 'Ongoing');
 
     const tripStartFormatted = DateTime.fromMillis(
         Number(startTime) || 0
     ).toLocaleString(DateTime.DATETIME_MED);
-
     const tripEndFormatted = DateTime.fromMillis(
         Number(endTime) || 0
     ).toLocaleString(DateTime.DATETIME_MED);
 
     const socConsumed = new SoCEstimator(Number(ratedVoltage) || 72);
-    const percentageOfBatteryUsed = new BigNumber(
+    const batteryUsedPercent = new BigNumber(
         socConsumed.getPercentUsed(Number(startVoltage), Number(endVoltage))
     ).toFixed(2);
 
-    const whPerMeter = new BigNumber(cumulativeEnergyWh).dividedBy(
-        distanceInMeters
-    );
-
-    const whPerUnitDesired = whPerMeter
+    const whPerUnit = new BigNumber(cumulativeEnergyWh)
+        .dividedBy(distanceInMeters)
         .multipliedBy(prefersMph ? 1609.34 : 1000)
         .toNumber();
+    const whPerUnitLabel = prefersMph ? 'Wh/mi' : 'Wh/km';
+    const whPerUnitDisplay = `${toFixed(whPerUnit, 2)} ${whPerUnitLabel}`;
 
     const routePoints = useMemo<RoutePoint[]>(() => {
         if (!Array.isArray(rawRoute)) {
@@ -426,128 +437,137 @@ const TripWithToast = memo(({ route, navigation }: any) => {
         }
     }, [id, navigation, route.params.serialNumber, t]);
 
-    const explicitMaximumInputPower = useMemo(() => {
-        if (maxInputPowerVoltage && maxInputPowerCurrent) {
-            return `${maxInputPowerVoltage}V @ ${maxInputPowerCurrent}A = ${maxInputPowerFormatted}W`;
+    const stats = useMemo(() => {
+        const timeWindowDisplay = `${tripStartFormatted} → ${tripEndFormatted}`;
+
+        const entries = [
+            {
+                label: t('trip.stats.distance'),
+                value: distanceDisplay,
+            },
+            {
+                label: t('trip.stats.duration'),
+                value: tripDurationDisplay,
+            },
+            {
+                label: t('trip.stats.energyConsumed'),
+                value: cumulativeEnergyDisplay,
+            },
+            {
+                label: t('trip.stats.avgSpeedCalculated'),
+                value: avgSpeedDisplay,
+            },
+            {
+                label: t('trip.stats.maxSpeedCalculated'),
+                value: maxSpeedDisplay,
+            },
+            {
+                label: whPerUnitLabel,
+                value: whPerUnitDisplay,
+            },
+            {
+                label: t('trip.stats.maxVoltageSag'),
+                value: `${toFixed(maxVoltageSagValue, 1)} V`,
+                tone: maxVoltageSagValue > 7 ? 'text-error-500' : undefined,
+            },
+            {
+                label: t('trip.stats.maxInputPower'),
+                value: `${toFixed(maxInputPowerValue, 0)} W`,
+            },
+            {
+                label: t('trip.stats.maxLineCurrent'),
+                value: `${toFixed(maxLineCurrentValue, 0)} A`,
+            },
+            {
+                label: t('trip.stats.maxRPM'),
+                value: `${toFixed(maxRPMValue, 0)}`,
+            },
+            {
+                label: t('trip.stats.startVoltage'),
+                value: `${toFixed(startVoltageValue, 2)} V`,
+            },
+            {
+                label: t('trip.stats.endVoltage'),
+                value: `${toFixed(endVoltageValue, 2)} V`,
+            },
+            {
+                label: t('trip.stats.percentageOfBatteryUsed'),
+                value: `${batteryUsedPercent}%`,
+            },
+        ];
+
+        if (gpsAvgSpeedDisplay) {
+            entries.splice(4, 0, {
+                label: t('trip.stats.avgSpeedGps'),
+                value: gpsAvgSpeedDisplay,
+            });
         }
-        return maxInputPowerFormatted;
-    }, [maxInputPowerCurrent, maxInputPowerFormatted, maxInputPowerVoltage]);
+        if (gpsMaxSpeedDisplay) {
+            const insertIndex = gpsAvgSpeedDisplay ? 6 : 5;
+            entries.splice(insertIndex, 0, {
+                label: t('trip.stats.maxSpeedGps'),
+                value: gpsMaxSpeedDisplay,
+            });
+        }
+
+        entries.push(
+            {
+                label: t('trip.stats.started'),
+                value: tripStartFormatted,
+            },
+            {
+                label: t('trip.stats.ended'),
+                value: tripEndFormatted,
+            }
+        );
+
+        return entries;
+    }, [
+        avgSpeedDisplay,
+        batteryUsedPercent,
+        cumulativeEnergyDisplay,
+        distanceDisplay,
+        gpsAvgSpeedDisplay,
+        gpsMaxSpeedDisplay,
+        maxInputPowerValue,
+        maxLineCurrentValue,
+        maxRPMValue,
+        maxSpeedDisplay,
+        maxVoltageSagValue,
+        t,
+        tripDurationDisplay,
+        tripEndFormatted,
+        tripStartFormatted,
+        whPerUnitDisplay,
+        whPerUnitLabel,
+    ]);
 
     return (
-        <ScrollView className="p-4">
-            <View className="bg-secondary-100 rounded-xl p-4 mb-6">
-                <HStack className="items-center justify-between">
-                    <Heading className="text-xl">
-                        {t('trip.stats.started')}
-                    </Heading>
-                    <Text className="text-secondary-500 text-lg font-bold">
-                        {tripStartFormatted}
-                    </Text>
-                </HStack>
-                <HStack className="items-center justify-between">
-                    <Heading className="text-xl">
-                        {t('trip.stats.ended')}
-                    </Heading>
-                    <Text className="text-secondary-500 text-lg font-bold">
-                        {tripEndFormatted}
-                    </Text>
-                </HStack>
-            </View>
+        <ScrollView
+            className="p-4"
+            contentContainerStyle={{ paddingBottom: 96 }}
+        >
+            <RouteReplay
+                route={routePoints}
+                prefersMph={prefersMph}
+                prefersFahrenheit={prefersFahrenheit}
+                maxVoltageSag={maxVoltageSagValue}
+                maxLineCurrent={maxLineCurrentValue}
+                maxInputPower={maxInputPowerValue}
+                maxRPM={maxRPMValue}
+            />
 
-            {/* Speed Information */}
-            <View className="bg-secondary-100 rounded-xl p-4 mb-6">
-                <Heading className="text-xl">
-                    {t('trip.stats.speedAndPower')}
+            <View className="bg-secondary-100 rounded-3xl p-4 mb-6">
+                <Heading className="text-xl font-semibold">
+                    {t('trip.stats.tripOverviewHeading', 'Trip Overview')}
                 </Heading>
-                <View className="mt-1 w-full">
-                    <TripDetail
-                        label={t('trip.stats.maxRPM')}
-                        value={`${maxRPMFormatted}`}
-                    />
-                    <TripDetail
-                        label={t('trip.stats.maxInputPower')}
-                        value={explicitMaximumInputPower}
-                    />
-                    <TripDetail
-                        label={t('trip.stats.maxLineCurrent')}
-                        value={`${maxLineCurrentFormatted}A`}
-                    />
-                    <TripDetail
-                        label={t('trip.stats.maxVoltageSag')}
-                        value={`${maxVoltageSag}V`}
-                    />
-                    <TripDetail
-                        label={t('trip.stats.avgSpeedCalculated')}
-                        value={`${avgSpeed}${prefersMph ? 'mph' : ' km/h'}`}
-                    />
-                    <TripDetail
-                        label={t('trip.stats.maxSpeedCalculated')}
-                        value={`${maxSpeed}${prefersMph ? 'mph' : ' km/h'}`}
-                    />
-                    {gpsSampleCount > 0 && (
-                        <TripDetail
-                            label={t('trip.stats.avgSpeedGps')}
-                            value={`${gpsAvgSpeedFormatted}${
-                                prefersMph ? 'mph' : ' km/h'
-                            }`}
+                <View className="flex-row flex-wrap mt-4 -mx-2">
+                    {stats.map((stat) => (
+                        <StatTile
+                            key={`${stat.label}-${stat.value}`}
+                            {...stat}
                         />
-                    )}
-                    {gpsSampleCount > 0 && (
-                        <TripDetail
-                            label={t('trip.stats.maxSpeedGps')}
-                            value={`${gpsMaxSpeedFormatted}${
-                                prefersMph ? 'mph' : ' km/h'
-                            }`}
-                        />
-                    )}
-                </View>
-            </View>
-
-            {/* Voltage/Power Information */}
-            <View className="bg-secondary-100 rounded-xl p-4 mb-6">
-                <Heading className="text-xl">
-                    {t('trip.stats.distanceAndConsumption')}
-                </Heading>
-                <View className="mt-1 w-full">
-                    <TripDetail
-                        label={t('trip.stats.energyConsumed')}
-                        value={`${cumulativeEnergy} Wh`}
-                    />
-                    <TripDetail
-                        label={
-                            prefersMph
-                                ? t('common.miles')
-                                : t('common.kilometers')
-                        }
-                        value={`${distance}`}
-                    />
-                    <TripDetail
-                        label={prefersMph ? 'Wh/mi' : 'Wh/km'}
-                        value={`${toFixed(whPerUnitDesired, 2)}`}
-                    />
-                    <TripDetail
-                        label={t('trip.stats.percentageOfBatteryUsed')}
-                        value={`${percentageOfBatteryUsed}%`}
-                    />
-                    <TripDetail
-                        label={t('trip.stats.startVoltage')}
-                        value={`${startVoltageFormatted} V`}
-                    />
-                    <TripDetail
-                        label={t('trip.stats.endVoltage')}
-                        value={`${endVoltageFormatted} V`}
-                    />
-                    <TripDetail
-                        label={t('trip.stats.duration')}
-                        value={tripDuration}
-                    />
-                    <View className="mt-4">
-                        <RouteReplay
-                            route={routePoints}
-                            prefersMph={prefersMph}
-                            prefersFahrenheit={prefersFahrenheit}
-                        />
-                    </View>
+                    ))}
                 </View>
             </View>
 
@@ -571,6 +591,27 @@ const TripWithToast = memo(({ route, navigation }: any) => {
         </ScrollView>
     );
 });
+
+const StatTile = ({
+    label,
+    value,
+    tone,
+}: {
+    label: string;
+    value: string;
+    tone?: string;
+}) => (
+    <View className="w-1/2 px-2 mb-4">
+        <Text className="text-secondary-400 text-xs uppercase font-semibold">
+            {label}
+        </Text>
+        <Text className={`text-secondary-600 text-xl font-bold ${tone ?? ''}`}>
+            {value}
+        </Text>
+    </View>
+);
+
+StatTile.displayName = 'StatTile';
 
 const TripDetail = memo(
     ({ label, value }: { label: string; value: string }) => (

@@ -121,9 +121,13 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
               {
                   label: t(
                       'trip.stats.remainingDistance',
-                      'Remaining Distance'
+                      'Remaining'
                   ),
                   value: `${tripSummary.remaining} ${distanceUnit}`,
+              },
+              {
+                  label: prefersMph ? 'Wh/mi' : 'Wh/km',
+                  value: tripSummary.whPerUnit,
               },
               {
                   label: t('trip.stats.voltageSag'),

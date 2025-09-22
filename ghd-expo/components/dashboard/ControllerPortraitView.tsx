@@ -1,5 +1,5 @@
 import React, { memo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
@@ -66,11 +66,19 @@ const ControllerPortraitView = ({
     const maxLineValue = parseInt(maxLineCurrent ?? '0', 10) || 1;
     const maxPhaseValue = parseInt(maxPhaseCurrent ?? '0', 10) || 1;
 
+    const speedLabel = usesGpsSpeed
+        ? prefersMph
+            ? 'GPS MPH'
+            : 'GPS KPH'
+        : prefersMph
+          ? 'MPH'
+          : 'KPH';
+
     return (
         <View
             className="flex-1 px-6 py-6"
             style={{
-                paddingBottom: portraitInsets.bottom + 24,
+                paddingBottom: portraitInsets.bottom + 20,
                 paddingTop: portraitInsets.top + 12,
             }}
         >
@@ -79,24 +87,24 @@ const ControllerPortraitView = ({
                     <NumberTicker
                         hideWhenZero={false}
                         sharedValue={calculatedSpeedSharedValue}
-                        fontSize={120}
-                        width={360}
+                        fontSize={112}
+                        width={340}
                     />
                     <HStack className="items-center mt-2 gap-2">
                         {usesGpsSpeed && (
                             <Icon
-                                size={22}
+                                size={20}
                                 as={LucideLocateFixed}
                                 className="text-secondary-500"
                             />
                         )}
-                        <Text className="text-secondary-500 text-2xl font-bold">
-                            {prefersMph ? 'MPH' : 'KPH'}
+                        <Text className="text-secondary-500 text-xl font-bold">
+                            {speedLabel}
                         </Text>
                     </HStack>
                 </View>
 
-                <View className="gap-5">
+                <View className="gap-4">
                     <View>
                         {showBatteryInformation ? (
                             <HStack className="items-center gap-4">
@@ -147,7 +155,7 @@ const ControllerPortraitView = ({
                         />
                     </HStack>
 
-                    <View>
+                    <View className="gap-y-3">
                         {tripSummary ? (
                             <HStack className="flex-wrap gap-y-3">
                                 <HudStat
@@ -178,7 +186,10 @@ const ControllerPortraitView = ({
                                     }`}
                                 />
                                 <HudStat
-                                    label={t('trip.stats.remainingDistance')}
+                                    label={t(
+                                        'trip.stats.remainingDistance',
+                                        'Remaining'
+                                    )}
                                     value={`${tripSummary.remaining} ${
                                         prefersMph ? 'mi' : 'km'
                                     }`}

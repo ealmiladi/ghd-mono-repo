@@ -11,11 +11,17 @@ import { LucidePause, LucidePlay } from 'lucide-react-native';
 import { RoutePoint } from '@/fardriver/interfaces/ControllerState';
 import { toFixed } from '@/utils';
 import { DateTime } from 'luxon';
+import NumberTicker from '@/components/dashboard/NumberTicker';
+import { useSharedValue, withTiming } from 'react-native-reanimated';
 
 interface RouteReplayProps {
     route: RoutePoint[];
     prefersMph: boolean;
     prefersFahrenheit: boolean;
+    maxVoltageSag?: number;
+    maxLineCurrent?: number;
+    maxInputPower?: number;
+    maxRPM?: number;
 }
 
 const EDGE_PADDING = { top: 48, right: 48, bottom: 48, left: 48 } as const;
@@ -24,11 +30,16 @@ const RouteReplay = ({
     route,
     prefersMph,
     prefersFahrenheit,
+    maxVoltageSag,
+    maxLineCurrent,
+    maxInputPower,
+    maxRPM,
 }: RouteReplayProps) => {
     const { t } = useTranslation();
     const [activeIndex, setActiveIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const mapRef = useRef<MapView | null>(null);
+    const speedSharedValue = useSharedValue(0);
 
     const sanitizedRoute = useMemo(() => {
         if (!route?.length) {
@@ -71,10 +82,21 @@ const RouteReplay = ({
         return { latitude, longitude, latitudeDelta, longitudeDelta };
     }, [sanitizedRoute]);
 
+    const computeSpeed = (point?: RoutePoint | null) => {
+        if (!point || point.speedMps === null || point.speedMps === undefined) {
+            return 0;
+        }
+        const baseSpeed = Number(point.speedMps);
+        const converted = prefersMph ? baseSpeed * 2.23694 : baseSpeed * 3.6;
+        return Math.max(converted, 0);
+    };
+
     useEffect(() => {
         setActiveIndex(0);
         setIsPlaying(false);
-    }, [sanitizedRoute]);
+        const initialPoint = sanitizedRoute[0];
+        speedSharedValue.value = computeSpeed(initialPoint);
+    }, [sanitizedRoute, prefersMph, speedSharedValue]);
 
     useEffect(() => {
         if (sanitizedRoute.length <= 1) {
@@ -122,16 +144,12 @@ const RouteReplay = ({
 
     const currentPoint = sanitizedRoute[activeIndex];
 
-    const hasSpeed =
-        currentPoint?.speedMps !== null && currentPoint?.speedMps !== undefined;
-    const formattedSpeed = hasSpeed
-        ? `${toFixed(
-              prefersMph
-                  ? Number(currentPoint.speedMps) * 2.23694
-                  : Number(currentPoint.speedMps) * 3.6,
-              1
-          )} ${prefersMph ? 'mph' : 'km/h'}`
-        : '—';
+    useEffect(() => {
+        const nextSpeed = computeSpeed(currentPoint);
+        speedSharedValue.value = withTiming(Math.round(nextSpeed), {
+            duration: 250,
+        });
+    }, [currentPoint, prefersMph, speedSharedValue]);
 
     const formattedVoltage =
         currentPoint?.voltage !== null && currentPoint?.voltage !== undefined
@@ -182,9 +200,86 @@ const RouteReplay = ({
           ).toLocaleString(DateTime.TIME_WITH_SECONDS)
         : '—';
 
+    const sagToneClass = useMemo(() => {
+        if (maxVoltageSag === undefined || maxVoltageSag === null) {
+            return 'text-secondary-500';
+        }
+        if (maxVoltageSag > 7) {
+            return 'text-error-500';
+        }
+        if (maxVoltageSag > 4) {
+            return 'text-yellow-500';
+        }
+        return 'text-secondary-500';
+    }, [maxVoltageSag]);
+
+    const summaryChips = useMemo(
+        () => [
+            {
+                label: t('trip.routeReplay.maxSag', 'Peak Sag'),
+                value:
+                    maxVoltageSag !== undefined && maxVoltageSag !== null
+                        ? `${toFixed(maxVoltageSag, 1)} V`
+                        : '—',
+                tone: sagToneClass,
+            },
+            {
+                label: t('trip.routeReplay.maxPower', 'Max Power'),
+                value:
+                    maxInputPower !== undefined && maxInputPower !== null
+                        ? `${toFixed(maxInputPower, 0)} W`
+                        : '—',
+            },
+            {
+                label: t('trip.routeReplay.maxCurrent', 'Max Current'),
+                value:
+                    maxLineCurrent !== undefined && maxLineCurrent !== null
+                        ? `${toFixed(maxLineCurrent, 0)} A`
+                        : '—',
+            },
+            {
+                label: t('trip.routeReplay.maxRpm', 'Max RPM'),
+                value:
+                    maxRPM !== undefined && maxRPM !== null
+                        ? `${toFixed(maxRPM, 0)}`
+                        : '—',
+            },
+        ],
+        [
+            maxInputPower,
+            maxLineCurrent,
+            maxRPM,
+            maxVoltageSag,
+            sagToneClass,
+            t,
+        ]
+    );
+
+    const detailCards = useMemo(
+        () => [
+            {
+                label: t('trip.routeReplay.voltageLabel', 'Voltage'),
+                value: formattedVoltage,
+            },
+            {
+                label: t('trip.routeReplay.currentLabel', 'Line Current'),
+                value: formattedCurrent,
+            },
+            {
+                label: t('trip.routeReplay.powerLabel', 'Power'),
+                value: formattedPower,
+            },
+            {
+                label: t('trip.routeReplay.temperatureLabel', 'Temps'),
+                value: formattedTemps(),
+            },
+        ],
+        [formattedCurrent, formattedPower, formattedVoltage, formattedTemps, t]
+    );
+
     if (!sanitizedRoute.length) {
         return (
-            <View className="bg-secondary-100 rounded-xl p-4 mb-6">
+            <View className="bg-secondary-100 rounded-3xl p-4 mb-6">
                 <Heading className="text-xl mb-2">
                     {t('trip.routeReplay.title')}
                 </Heading>
@@ -196,14 +291,11 @@ const RouteReplay = ({
     }
 
     return (
-        <View className="bg-secondary-100 rounded-xl p-4 mb-6">
-            <Heading className="text-xl mb-3">
+        <View className="bg-secondary-100 rounded-3xl p-4 mb-6">
+            <Heading className="text-xl font-semibold mb-3">
                 {t('trip.routeReplay.title')}
             </Heading>
-            <View
-                className="overflow-hidden rounded-xl"
-                style={{ height: 240 }}
-            >
+            <View className="overflow-hidden rounded-3xl" style={{ height: 280 }}>
                 <MapView
                     ref={mapRef}
                     style={{ flex: 1 }}
@@ -227,6 +319,41 @@ const RouteReplay = ({
                         />
                     )}
                 </MapView>
+
+                <View className="absolute left-4 right-4 top-4">
+                    <View className="rounded-3xl bg-background-0/90 px-4 py-3">
+                        <View className="items-center">
+                            <NumberTicker
+                                hideWhenZero={false}
+                                sharedValue={speedSharedValue}
+                                fontSize={56}
+                                width={220}
+                            />
+                            <Text className="text-secondary-500 text-sm font-semibold">
+                                {prefersMph ? 'MPH' : 'KM/H'}
+                            </Text>
+                        </View>
+                        <View className="mt-3 flex-row flex-wrap gap-3">
+                            {summaryChips.map((chip) => (
+                                <View
+                                    key={chip.label}
+                                    className="rounded-2xl bg-secondary-200 px-3 py-2"
+                                >
+                                    <Text className="text-secondary-400 text-xs uppercase font-semibold">
+                                        {chip.label}
+                                    </Text>
+                                    <Text
+                                        className={`text-lg font-bold ${
+                                            chip.tone ?? 'text-secondary-600'
+                                        }`}
+                                    >
+                                        {chip.value}
+                                    </Text>
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+                </View>
             </View>
 
             <View className="flex-row items-center justify-between mt-4">
@@ -254,10 +381,6 @@ const RouteReplay = ({
                     </ButtonText>
                 </Button>
                 <View className="flex-1 ml-4">
-                    {/**
-                     * When there is only one sample we still render the slider for consistency,
-                     * but keep it disabled to avoid confusing interactions.
-                     */}
                     <Slider
                         minimumValue={0}
                         maximumValue={Math.max(sanitizedRoute.length - 1, 0)}
@@ -282,20 +405,21 @@ const RouteReplay = ({
                 </View>
             </View>
 
-            <View className="mt-4 gap-1">
-                <Text className="text-secondary-600 font-semibold">
-                    {t('trip.routeReplay.speed', { value: formattedSpeed })}
-                </Text>
-                <Text className="text-secondary-600 font-semibold">
-                    {t('trip.routeReplay.voltage', { value: formattedVoltage })}
-                </Text>
-                <Text className="text-secondary-600 font-semibold">
-                    {t('trip.routeReplay.current', { value: formattedCurrent })}
-                </Text>
-                <Text className="text-secondary-600 font-semibold">
-                    {t('trip.routeReplay.power', { value: formattedPower })}
-                </Text>
-                <Text className="text-secondary-500">{formattedTemps()}</Text>
+            <View className="mt-4 flex-row flex-wrap gap-3">
+                {detailCards.map((card) => (
+                    <View
+                        key={card.label}
+                        className="rounded-2xl bg-secondary-200 px-3 py-2"
+                        style={{ width: '48%' }}
+                    >
+                        <Text className="text-secondary-400 text-xs uppercase font-semibold">
+                            {card.label}
+                        </Text>
+                        <Text className="text-secondary-600 text-lg font-bold">
+                            {card.value}
+                        </Text>
+                    </View>
+                ))}
             </View>
         </View>
     );
