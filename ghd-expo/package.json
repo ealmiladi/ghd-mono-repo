@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
+    "start:sim": "EXPO_PUBLIC_ENABLE_SIMULATOR=true yarn start",
     "android": "DARK_MODE=media expo run:android",
     "ios": "DARK_MODE=media expo run:ios",
     "lint": "expo lint",

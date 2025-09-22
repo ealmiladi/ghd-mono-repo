@@ -40,12 +40,15 @@ type FullscreenHudProps = {
     motorTemperatureCelcius: number | undefined;
     mosTemperatureCelcius: number | undefined;
     calculatedSpeedSharedValue: any;
+    rpmSharedValue: any;
+    wattsSharedValue: any;
     prefersMph: boolean;
     prefersFahrenheit: boolean;
     tripSummary: TripSummary | null;
     isScanning: boolean;
     colorScheme: string | null | undefined;
     voltageSag: number;
+    currentLocation: { latitude: number; longitude: number } | null;
 };
 
 const FullscreenHud = memo((props: FullscreenHudProps) => {
@@ -72,12 +75,15 @@ const FullscreenHud = memo((props: FullscreenHudProps) => {
         motorTemperatureCelcius,
         mosTemperatureCelcius,
         calculatedSpeedSharedValue,
+        rpmSharedValue,
+        wattsSharedValue,
         prefersMph,
         prefersFahrenheit,
         tripSummary,
         isScanning,
         colorScheme,
         voltageSag,
+        currentLocation,
     } = props;
 
     const { width, height } = useWindowDimensions();
@@ -153,6 +159,8 @@ const FullscreenHud = memo((props: FullscreenHudProps) => {
                             calculatedSpeedSharedValue={
                                 calculatedSpeedSharedValue
                             }
+                            rpmSharedValue={rpmSharedValue}
+                            wattsSharedValue={wattsSharedValue}
                             lineCurrent={lineCurrent}
                             phaseACurrent={phaseACurrent}
                             phaseCCurrent={phaseCCurrent}
@@ -164,6 +172,7 @@ const FullscreenHud = memo((props: FullscreenHudProps) => {
                             isScanning={isScanning}
                             usesGpsSpeed={controller.preferGpsSpeed}
                             voltageSag={voltageSag}
+                            currentLocation={currentLocation}
                             insets={hudInsets}
                         />
                     ) : (
@@ -182,6 +191,8 @@ const FullscreenHud = memo((props: FullscreenHudProps) => {
                                 prefersFahrenheit,
                                 usesGpsSpeed: controller.preferGpsSpeed,
                                 calculatedSpeedSharedValue,
+                                rpmSharedValue,
+                                wattsSharedValue,
                                 lineCurrent,
                                 phaseACurrent,
                                 phaseCCurrent,
@@ -192,6 +203,7 @@ const FullscreenHud = memo((props: FullscreenHudProps) => {
                                 tripSummary,
                                 isScanning,
                                 voltageSag,
+                                currentLocation,
                             }}
                         />
                     )}

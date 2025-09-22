@@ -64,6 +64,7 @@ const ControllerPage = ({ controller }: { controller: Controller }) => {
         polePairsSharedValue,
         motorCutoffApplied,
         tripSummary,
+        currentLocation,
         endCurrentTrip,
         isEndingTrip,
     } = useControllerTelemetry({
@@ -97,38 +98,33 @@ const ControllerPage = ({ controller }: { controller: Controller }) => {
     if (isLandscape) {
         return (
             <ControllerLandscapeView
-                {...{
-                    currentTrip,
-                    animatedMphStyle,
-                    polePairsSharedValue,
-                    maxSpeedInRPM,
-                    prefersMph,
-                    prefersFahrenheit,
-                    animatedBikeOpacity,
-                    device,
-                    name: controller.name,
-                    motorCutoffApplied,
-                    hasReceivedBatteryInformation,
-                    batterySoc,
-                    batteryVoltage,
-                    batteryColor,
-                    lineCurrent,
-                    maxLineCurrent,
-                    phaseACurrent,
-                    phaseCCurrent,
-                    maxPhaseCurrent,
-                    rpmSharedValue,
-                    wattsSharedValue,
-                    calculatedSpeedSharedValue,
-                    insets,
-                    controller,
-                    controllerFaults,
-                    currentGear,
-                    currentGearPower,
-                    motorTemperatureCelcius,
-                    mosTemperatureCelcius,
-                    voltageSag,
-                }}
+                controller={controller}
+                controllerFaults={controllerFaults}
+                device={device}
+                batteryVoltage={batteryVoltage}
+                batterySoc={batterySoc}
+                batteryColor={batteryColor}
+                hasReceivedBatteryInformation={hasReceivedBatteryInformation}
+                currentGear={currentGear}
+                currentGearPower={currentGearPower}
+                prefersMph={prefersMph}
+                prefersFahrenheit={prefersFahrenheit}
+                calculatedSpeedSharedValue={calculatedSpeedSharedValue}
+                lineCurrent={lineCurrent}
+                phaseACurrent={phaseACurrent}
+                phaseCCurrent={phaseCCurrent}
+                maxLineCurrent={maxLineCurrent}
+                maxPhaseCurrent={maxPhaseCurrent}
+                rpmSharedValue={rpmSharedValue}
+                wattsSharedValue={wattsSharedValue}
+                mosTemperatureCelcius={mosTemperatureCelcius}
+                motorTemperatureCelcius={motorTemperatureCelcius}
+                tripSummary={tripSummary}
+                isScanning={isScanning}
+                usesGpsSpeed={controller.preferGpsSpeed}
+                voltageSag={voltageSag}
+                currentLocation={currentLocation}
+                insets={insets}
             />
         );
     }
@@ -306,6 +302,7 @@ const ControllerPage = ({ controller }: { controller: Controller }) => {
                 colorScheme={colorScheme}
                 motorCutoffApplied={motorCutoffApplied}
                 voltageSag={voltageSag}
+                currentLocation={currentLocation}
             />
         </View>
     );

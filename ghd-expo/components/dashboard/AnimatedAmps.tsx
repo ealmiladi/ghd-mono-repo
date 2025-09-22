@@ -45,7 +45,9 @@ const AnimatedHorizontalBars = ({
     // Normalize the shared values with timing
     const normalizedLineCurrent = useDerivedValue(() => {
         if (!lineCurrent || !maxLine) return 0;
-        return withTiming((lineCurrent.value / maxLine) * canvasWidth, {
+        const scaledWidth = (lineCurrent.value / maxLine) * canvasWidth;
+        const clampedWidth = Math.max(0, Math.min(scaledWidth, canvasWidth));
+        return withTiming(clampedWidth, {
             duration: 500,
             easing: Easing.bezier(0.25, 0.1, 0.25, 1),
         });
@@ -53,7 +55,9 @@ const AnimatedHorizontalBars = ({
 
     const normalizedPhaseA = useDerivedValue(() => {
         if (!phaseA || !maxPhase) return 0;
-        return withTiming((phaseA.value / maxPhase) * canvasWidth, {
+        const scaledWidth = (phaseA.value / maxPhase) * canvasWidth;
+        const clampedWidth = Math.max(0, Math.min(scaledWidth, canvasWidth));
+        return withTiming(clampedWidth, {
             duration: 500,
             easing: Easing.bezier(0.25, 0.1, 0.25, 1),
         });
@@ -61,7 +65,9 @@ const AnimatedHorizontalBars = ({
 
     const normalizedPhaseC = useDerivedValue(() => {
         if (!phaseC || !maxPhase) return 0;
-        return withTiming((phaseC.value / maxPhase) * canvasWidth, {
+        const scaledWidth = (phaseC.value / maxPhase) * canvasWidth;
+        const clampedWidth = Math.max(0, Math.min(scaledWidth, canvasWidth));
+        return withTiming(clampedWidth, {
             duration: 500,
             easing: Easing.bezier(0.25, 0.1, 0.25, 1),
         });
@@ -89,56 +95,71 @@ const AnimatedHorizontalBars = ({
         fontSize - 4
     );
 
-    const rect1 = useDerivedValue(() => {
-        return {
-            rect: {
-                x: 0,
-                y: 0,
-                width: isNaN(normalizedLineCurrent.value)
-                    ? 0
-                    : normalizedLineCurrent.value,
-                height: barHeight,
-            },
-            topLeft: { x: 0, y: 0 },
-            topRight: { x: cornerRadius, y: cornerRadius },
-            bottomRight: { x: cornerRadius, y: cornerRadius },
-            bottomLeft: { x: 0, y: 0 },
-        };
-    }, [normalizedLineCurrent, barHeight, spacing, cornerRadius]);
+    const createFillRect = (
+        widthValue: number,
+        yOffset: number,
+        maxWidth: number,
+        radius: number,
+        height: number
+    ) => {
+        'worklet';
+        const safeWidth = Number.isFinite(widthValue)
+            ? Math.max(0, widthValue)
+            : 0;
+        const clampedWidth = Math.min(safeWidth, maxWidth);
+        const maxRadius = Math.min(radius, height / 2);
+        const appliedRadius =
+            clampedWidth === 0 ? 0 : Math.min(maxRadius, clampedWidth / 2);
 
-    const rect2 = useDerivedValue(() => {
         return {
             rect: {
                 x: 0,
-                y: barHeight + spacing - 1,
-                width: isNaN(normalizedPhaseA.value)
-                    ? 0
-                    : normalizedPhaseA.value,
-                height: barHeight,
+                y: yOffset,
+                width: clampedWidth,
+                height,
             },
-            topLeft: { x: 0, y: 0 },
-            topRight: { x: cornerRadius, y: cornerRadius },
-            bottomRight: { x: cornerRadius, y: cornerRadius },
-            bottomLeft: { x: 0, y: 0 },
+            topLeft: { x: appliedRadius, y: appliedRadius },
+            topRight: { x: appliedRadius, y: appliedRadius },
+            bottomRight: { x: appliedRadius, y: appliedRadius },
+            bottomLeft: { x: appliedRadius, y: appliedRadius },
         };
-    }, [normalizedPhaseA, barHeight, spacing, cornerRadius]);
+    };
 
-    const rect4 = useDerivedValue(() => {
-        return {
-            rect: {
-                x: 0,
-                y: (barHeight + spacing) * 2 - 1,
-                width: isNaN(normalizedPhaseC.value)
-                    ? 0
-                    : normalizedPhaseC.value,
-                height: barHeight,
-            },
-            topLeft: { x: 0, y: 0 },
-            topRight: { x: cornerRadius, y: cornerRadius },
-            bottomRight: { x: cornerRadius, y: cornerRadius },
-            bottomLeft: { x: 0, y: 0 },
-        };
-    }, [normalizedPhaseC, barHeight, spacing, cornerRadius]);
+    const rect1 = useDerivedValue(
+        () =>
+            createFillRect(
+                normalizedLineCurrent.value,
+                0,
+                canvasWidth,
+                cornerRadius,
+                barHeight
+            ),
+        [normalizedLineCurrent, barHeight, cornerRadius, canvasWidth]
+    );
+
+    const rect2 = useDerivedValue(
+        () =>
+            createFillRect(
+                normalizedPhaseA.value,
+                barHeight + spacing - 1,
+                canvasWidth,
+                cornerRadius,
+                barHeight
+            ),
+        [normalizedPhaseA, barHeight, spacing, cornerRadius, canvasWidth]
+    );
+
+    const rect4 = useDerivedValue(
+        () =>
+            createFillRect(
+                normalizedPhaseC.value,
+                (barHeight + spacing) * 2 - 1,
+                canvasWidth,
+                cornerRadius,
+                barHeight
+            ),
+        [normalizedPhaseC, barHeight, spacing, cornerRadius, canvasWidth]
+    );
 
     const createRRectF = (width, yPosition) => ({
         rect: { x: 0, y: yPosition, width, height: barHeight },

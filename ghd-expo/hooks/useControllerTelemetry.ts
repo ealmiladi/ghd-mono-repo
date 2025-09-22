@@ -47,6 +47,7 @@ export type UseControllerTelemetryResult = {
     polePairsSharedValue: SharedValue<number>;
     motorCutoffApplied: SharedValue<boolean>;
     tripSummary: TripSummary | null;
+    currentLocation: { latitude: number; longitude: number } | null;
     endCurrentTrip: (options?: { onSuccess?: () => void }) => Promise<void>;
     isEndingTrip: boolean;
 };
@@ -80,6 +81,9 @@ const useControllerTelemetry = ({
     const [mosTemperatureCelcius, setMosTemperatureCelcius] =
         useState<number | undefined>(undefined);
     const [isEndingTrip, setEndingTrip] = useState(false);
+    const [currentLocation, setCurrentLocation] = useState<
+        { latitude: number; longitude: number } | null
+    >(null);
 
     const calculatedSpeedSharedValue = useSharedValue(0);
     const rpmSharedValue = useSharedValue(0);
@@ -151,6 +155,8 @@ const useControllerTelemetry = ({
             });
 
             stateForController.currentTrip.publishTripUpdate();
+
+            setCurrentLocation({ latitude, longitude });
 
             if (speed !== null && speed !== undefined && speed >= 0) {
                 stateForController.currentTrip?.recordGpsSpeed(speed);
@@ -640,6 +646,7 @@ const useControllerTelemetry = ({
         polePairsSharedValue,
         motorCutoffApplied,
         tripSummary,
+        currentLocation,
         endCurrentTrip,
         isEndingTrip,
     };

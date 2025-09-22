@@ -28,6 +28,8 @@ const ControllerPortraitView = ({
     prefersMph,
     prefersFahrenheit,
     calculatedSpeedSharedValue,
+    rpmSharedValue: _rpmSharedValue,
+    wattsSharedValue: _wattsSharedValue,
     lineCurrent,
     phaseACurrent,
     phaseCCurrent,
@@ -39,6 +41,7 @@ const ControllerPortraitView = ({
     isScanning,
     usesGpsSpeed,
     voltageSag,
+    currentLocation: _currentLocation,
 }: ControllerPortraitViewProps) => {
     const { t } = useTranslation();
     const portraitInsets = useSafeAreaInsets();
@@ -161,7 +164,7 @@ const ControllerPortraitView = ({
 
             <HStack className="justify-between mt-4">
                 <HudTemperature
-                    title="MOS"
+                    title={t('trip.stats.controllerTemperature', 'Controller')}
                     value={mosTemperatureCelcius}
                     prefersFahrenheit={prefersFahrenheit}
                 />
@@ -339,6 +342,8 @@ export type ControllerPortraitViewProps = {
     prefersMph: boolean;
     prefersFahrenheit: boolean;
     calculatedSpeedSharedValue: any;
+    rpmSharedValue: any;
+    wattsSharedValue: any;
     lineCurrent: any;
     phaseACurrent: any;
     phaseCCurrent: any;
@@ -350,6 +355,7 @@ export type ControllerPortraitViewProps = {
     isScanning: boolean;
     usesGpsSpeed: boolean;
     voltageSag: number;
+    currentLocation: { latitude: number; longitude: number } | null;
 };
 
 export default memo(ControllerPortraitView);
