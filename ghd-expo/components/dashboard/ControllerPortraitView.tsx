@@ -1,7 +1,6 @@
 import React, { memo, useState } from 'react';
-import { View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
 import { HStack } from '@/components/ui/hstack';
 import NumberTicker from '@/components/dashboard/NumberTicker';
@@ -14,6 +13,9 @@ import { Controller } from '@/interfaces/Controller';
 import { Device } from 'react-native-ble-plx';
 import type { TripSummary } from '@/components/dashboard/types';
 import { IS_SIMULATOR_MODE } from '@/utils/env';
+import MotorVitalsCard from '@/components/dashboard/MotorVitalsCard';
+import GearIndicatorIcon from '@/components/dashboard/GearIndicatorIcon';
+import type { SharedValue } from 'react-native-reanimated';
 
 const ControllerPortraitView = ({
     controller,
@@ -28,8 +30,8 @@ const ControllerPortraitView = ({
     prefersMph,
     prefersFahrenheit,
     calculatedSpeedSharedValue,
-    rpmSharedValue: _rpmSharedValue,
-    wattsSharedValue: _wattsSharedValue,
+    rpmSharedValue,
+    wattsSharedValue,
     lineCurrent,
     phaseACurrent,
     phaseCCurrent,
@@ -42,9 +44,9 @@ const ControllerPortraitView = ({
     usesGpsSpeed,
     voltageSag,
     currentLocation: _currentLocation,
+    motorCutoffApplied,
 }: ControllerPortraitViewProps) => {
     const { t } = useTranslation();
-    const portraitInsets = useSafeAreaInsets();
     const [barsWidth, setBarsWidth] = useState(240);
 
     const isConnected = IS_SIMULATOR_MODE || !!device;
@@ -74,27 +76,51 @@ const ControllerPortraitView = ({
           ? 'MPH'
           : 'KPH';
 
+    const showGearInfo = hasReceivedBatteryInformation && currentGear !== null;
+
     return (
-        <View className="flex-1 px-6 py-6">
-            <View className="flex-1 justify-between">
-                <View className="items-center">
+        <ScrollView
+            className="flex-1 bg-background-0"
+            showsVerticalScrollIndicator={false}
+        >
+            <View className="flex-1 justify-between px-6 py-6">
+                <View className="items-center w-full">
                     <NumberTicker
                         hideWhenZero={false}
                         sharedValue={calculatedSpeedSharedValue}
                         fontSize={112}
                         width={340}
                     />
-                    <HStack className="items-center justify-start self-start mt-2 gap-2">
-                        {usesGpsSpeed && (
-                            <Icon
-                                size={20}
-                                as={LucideLocateFixed}
-                                className="text-secondary-500"
-                            />
-                        )}
-                        <Text className="text-secondary-500 text-xl font-bold">
-                            {speedLabel}
-                        </Text>
+                    <HStack className="items-center mt-2 w-full gap-2">
+                        <HStack className="items-center gap-2">
+                            {usesGpsSpeed && (
+                                <Icon
+                                    size={20}
+                                    as={LucideLocateFixed}
+                                    className="text-secondary-500"
+                                />
+                            )}
+                            <Text className="text-secondary-500 text-xl font-bold">
+                                {speedLabel}
+                            </Text>
+                        </HStack>
+                        <View
+                            className="ml-auto"
+                            style={{ minHeight: 32, justifyContent: 'center' }}
+                        >
+                            {showGearInfo && currentGear ? (
+                                <GearIndicatorIcon
+                                    motorCutoffApplied={motorCutoffApplied}
+                                    gear={currentGear}
+                                    gearPower={currentGearPower ?? ''}
+                                    textClass="text-base font-semibold"
+                                />
+                            ) : (
+                                <Text className="text-secondary-400 text-lg font-semibold">
+                                    --
+                                </Text>
+                            )}
+                        </View>
                     </HStack>
                 </View>
 
@@ -141,21 +167,26 @@ const ControllerPortraitView = ({
                         />
                     </View>
 
-                    <HStack className="justify-between">
-                        <HudTemperature
-                            title={t(
-                                'trip.stats.controllerTemperature',
-                                'Controller'
+                    <View className="gap-3">
+                        <Text className="text-secondary-400 text-xs uppercase font-semibold">
+                            {t('trip.stats.motorOutputHeading', 'Motor Output')}
+                        </Text>
+                        <MotorVitalsCard
+                            rpmSharedValue={rpmSharedValue}
+                            wattsSharedValue={wattsSharedValue}
+                            motorTemperatureCelcius={motorTemperatureCelcius}
+                            controllerTemperatureCelcius={mosTemperatureCelcius}
+                            prefersFahrenheit={prefersFahrenheit}
+                            rpmLabel={t('trip.stats.currentRpm', 'Motor RPM')}
+                            wattsLabel={t(
+                                'trip.stats.inputPower',
+                                'Input Power'
                             )}
-                            value={mosTemperatureCelcius}
-                            prefersFahrenheit={prefersFahrenheit}
+                            motorTempLabel={t('trip.stats.motorTemperature')}
+                            controllerTempLabel="MOS"
+                            style={{ alignSelf: 'stretch' }}
                         />
-                        <HudTemperature
-                            title={t('trip.stats.motorTemperature')}
-                            value={motorTemperatureCelcius}
-                            prefersFahrenheit={prefersFahrenheit}
-                        />
-                    </HStack>
+                    </View>
 
                     <View className="gap-y-3">
                         {tripSummary ? (
@@ -249,7 +280,7 @@ const ControllerPortraitView = ({
                     </View>
                 </View>
             </View>
-        </View>
+        </ScrollView>
     );
 };
 
@@ -299,40 +330,6 @@ const HudClockStat = ({
     </View>
 );
 
-const HudTemperature = ({
-    title,
-    value,
-    prefersFahrenheit,
-}: {
-    title: string;
-    value: number | undefined;
-    prefersFahrenheit: boolean;
-}) => {
-    if (value === undefined) {
-        return null;
-    }
-    const converted = prefersFahrenheit ? value * 1.8 + 32 : value;
-    const unit = prefersFahrenheit ? '°F' : '°C';
-    const color =
-        value < 60
-            ? 'text-green-500'
-            : value < 80
-              ? 'text-yellow-500'
-              : 'text-red-500';
-
-    return (
-        <View className="items-start">
-            <Text className="text-secondary-500 text-xs uppercase font-semibold">
-                {title}
-            </Text>
-            <Text className={`text-3xl font-bold ${color}`}>
-                {converted.toFixed(0)}
-                {unit}
-            </Text>
-        </View>
-    );
-};
-
 export type ControllerPortraitViewProps = {
     controller: Controller;
     controllerFaults: { title: string; description: string }[];
@@ -360,6 +357,7 @@ export type ControllerPortraitViewProps = {
     usesGpsSpeed: boolean;
     voltageSag: number;
     currentLocation: { latitude: number; longitude: number } | null;
+    motorCutoffApplied: SharedValue<boolean>;
 };
 
 export default memo(ControllerPortraitView);

@@ -374,6 +374,7 @@ const ControllerPage = ({ controller }: { controller: Controller }) => {
                 hasReceivedBatteryInformation={hasReceivedBatteryInformation}
                 currentGear={currentGear}
                 currentGearPower={currentGearPower}
+                motorCutoffApplied={motorCutoffApplied}
                 prefersMph={prefersMph}
                 prefersFahrenheit={prefersFahrenheit}
                 calculatedSpeedSharedValue={calculatedSpeedSharedValue}

@@ -18,6 +18,7 @@ import { IS_SIMULATOR_MODE } from '@/utils/env';
 import type { ControllerPortraitViewProps } from '@/components/dashboard/ControllerPortraitView';
 import type { EdgeInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, type Region } from 'react-native-maps';
+import GearIndicatorIcon from '@/components/dashboard/GearIndicatorIcon';
 
 type StatItem = {
     label: string;
@@ -64,6 +65,9 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
         currentLocation,
         insets,
         isScanning,
+        currentGear,
+        currentGearPower,
+        motorCutoffApplied,
     } = props;
 
     const { t } = useTranslation();
@@ -116,6 +120,7 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
 
     const distanceUnit = prefersMph ? 'mi' : 'km';
     const speedUnit = prefersMph ? 'mph' : 'km/h';
+    const showGearInfo = hasReceivedBatteryInformation && currentGear !== null;
 
     const summaryStats: StatItem[] = tripSummary
         ? [
@@ -696,17 +701,36 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                         fontSize={gaugeFontSize}
                         width={gaugeWidth}
                     />
-                    <HStack className="items-center justify-start self-start mt-2 gap-2">
-                        {usesGpsSpeed && (
-                            <Icon
-                                size={28}
-                                as={LucideLocateFixed}
-                                className="text-secondary-500"
-                            />
-                        )}
-                        <Text className="text-secondary-500 text-3xl font-bold">
-                            {prefersMph ? 'MPH' : 'KPH'}
-                        </Text>
+                    <HStack className="items-center mt-2 w-full gap-2">
+                        <HStack className="items-center gap-2">
+                            {usesGpsSpeed && (
+                                <Icon
+                                    size={28}
+                                    as={LucideLocateFixed}
+                                    className="text-secondary-500"
+                                />
+                            )}
+                            <Text className="text-secondary-500 text-3xl font-bold">
+                                {prefersMph ? 'MPH' : 'KPH'}
+                            </Text>
+                        </HStack>
+                        <View
+                            className="ml-auto"
+                            style={{ minHeight: 36, justifyContent: 'center' }}
+                        >
+                            {showGearInfo && currentGear ? (
+                                <GearIndicatorIcon
+                                    motorCutoffApplied={motorCutoffApplied}
+                                    gear={currentGear}
+                                    gearPower={currentGearPower ?? ''}
+                                    textClass="text-2xl font-semibold"
+                                />
+                            ) : (
+                                <Text className="text-secondary-400 text-2xl font-semibold">
+                                    --
+                                </Text>
+                            )}
+                        </View>
                     </HStack>
 
                     <View className="w-full mt-6">

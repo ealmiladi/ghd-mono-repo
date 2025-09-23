@@ -11,6 +11,7 @@ import type { Controller } from '@/interfaces/Controller';
 import type { Device } from 'react-native-ble-plx';
 import type { TripSummary } from '@/components/dashboard/types';
 import useControllerOrientation from '@/hooks/useControllerOrientation';
+import { SharedValue } from 'react-native-reanimated';
 
 type FullscreenHudProps = {
     visible: boolean;
@@ -41,6 +42,7 @@ type FullscreenHudProps = {
     prefersFahrenheit: boolean;
     tripSummary: TripSummary | null;
     isScanning: boolean;
+    motorCutoffApplied: SharedValue<boolean>;
     colorScheme: string | null | undefined;
     voltageSag: number;
     currentLocation: { latitude: number; longitude: number } | null;
@@ -76,7 +78,7 @@ const FullscreenHud = memo((props: FullscreenHudProps) => {
         prefersFahrenheit,
         tripSummary,
         isScanning,
-        colorScheme,
+        motorCutoffApplied,
         voltageSag,
         currentLocation,
     } = props;
@@ -152,6 +154,7 @@ const FullscreenHud = memo((props: FullscreenHudProps) => {
                             }
                             currentGear={currentGear}
                             currentGearPower={currentGearPower}
+                            motorCutoffApplied={motorCutoffApplied}
                             prefersMph={prefersMph}
                             prefersFahrenheit={prefersFahrenheit}
                             calculatedSpeedSharedValue={
@@ -185,6 +188,7 @@ const FullscreenHud = memo((props: FullscreenHudProps) => {
                                 hasReceivedBatteryInformation,
                                 currentGear,
                                 currentGearPower,
+                                motorCutoffApplied,
                                 prefersMph,
                                 prefersFahrenheit,
                                 usesGpsSpeed: controller.preferGpsSpeed,
