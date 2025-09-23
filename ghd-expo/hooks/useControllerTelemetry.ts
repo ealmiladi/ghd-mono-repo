@@ -10,7 +10,10 @@ import useLocation, { type LocationSample } from '@/hooks/useLocation';
 import { IS_SIMULATOR_MODE } from '@/utils/env';
 import { toFixed } from '@/utils';
 import type { Controller } from '@/interfaces/Controller';
-import type { ControllerState, CurrentTrip } from '@/fardriver/interfaces/ControllerState';
+import type {
+    ControllerState,
+    CurrentTrip,
+} from '@/fardriver/interfaces/ControllerState';
 import type { TripSummary } from '@/components/dashboard/types';
 
 export type UseControllerTelemetryArgs = {
@@ -58,13 +61,19 @@ const useControllerTelemetry = ({
     translate,
     isLandscape,
 }: UseControllerTelemetryArgs): UseControllerTelemetryResult => {
-    const { connectedDevices, deviceLoadingStates, controllerStates, isScanning } =
-        useDevices();
+    const {
+        connectedDevices,
+        deviceLoadingStates,
+        controllerStates,
+        isScanning,
+    } = useDevices();
 
     const locationCleanupRef = useRef<(() => void) | null>(null);
 
     const [currentGear, setCurrentGear] = useState<string | null>(null);
-    const [currentGearPower, setCurrentGearPower] = useState<string | null>(null);
+    const [currentGearPower, setCurrentGearPower] = useState<string | null>(
+        null
+    );
 
     const [batteryVoltage, setBatteryVoltage] = useState<string | null>(null);
     const [batterySoc, setBatterySoc] = useState<string | null>(null);
@@ -76,14 +85,17 @@ const useControllerTelemetry = ({
         { title: string; description: string }[]
     >([]);
     const [voltageSag, setVoltageSag] = useState(0);
-    const [motorTemperatureCelcius, setMotorTemperatureCelcius] =
-        useState<number | undefined>(undefined);
-    const [mosTemperatureCelcius, setMosTemperatureCelcius] =
-        useState<number | undefined>(undefined);
+    const [motorTemperatureCelcius, setMotorTemperatureCelcius] = useState<
+        number | undefined
+    >(undefined);
+    const [mosTemperatureCelcius, setMosTemperatureCelcius] = useState<
+        number | undefined
+    >(undefined);
     const [isEndingTrip, setEndingTrip] = useState(false);
-    const [currentLocation, setCurrentLocation] = useState<
-        { latitude: number; longitude: number } | null
-    >(null);
+    const [currentLocation, setCurrentLocation] = useState<{
+        latitude: number;
+        longitude: number;
+    } | null>(null);
 
     const calculatedSpeedSharedValue = useSharedValue(0);
     const rpmSharedValue = useSharedValue(0);
@@ -130,8 +142,8 @@ const useControllerTelemetry = ({
                 lastSag === undefined || lastSag === null
                     ? null
                     : BigNumber.isBigNumber(lastSag)
-                    ? lastSag.toNumber()
-                    : Number(lastSag);
+                      ? lastSag.toNumber()
+                      : Number(lastSag);
 
             stateForController.currentTrip.recordRoutePoint({
                 timestamp,
@@ -478,23 +490,24 @@ const useControllerTelemetry = ({
         }
 
         const presetTrip = () => {
-            setCurrentTrip((existing) =>
-                existing ||
-                ({
-                    avgPower: 100,
-                    avgSpeed: 20,
-                    cumulativeEnergyWh: new BigNumber(1000),
-                    distanceInMeters: new BigNumber(1000),
-                    maxRPM: 1000,
-                    maxSpeedInMeters: 20,
-                    startVoltage: 50,
-                    startTime: Date.now(),
-                    maxLineCurrent: 100,
-                    endVoltage: 40,
-                    estimatedDistanceRemainingInMeters: new BigNumber(1010),
-                    maxInputPower: 1000,
-                    performEndTripCalculations: () => {},
-                } as any)
+            setCurrentTrip(
+                (existing) =>
+                    existing ||
+                    ({
+                        avgPower: 100,
+                        avgSpeed: 20,
+                        cumulativeEnergyWh: new BigNumber(1000),
+                        distanceInMeters: new BigNumber(1000),
+                        maxRPM: 1000,
+                        maxSpeedInMeters: 20,
+                        startVoltage: 50,
+                        startTime: Date.now(),
+                        maxLineCurrent: 100,
+                        endVoltage: 40,
+                        estimatedDistanceRemainingInMeters: new BigNumber(1010),
+                        maxInputPower: 1000,
+                        performEndTripCalculations: () => {},
+                    } as any)
             );
         };
 
@@ -519,7 +532,13 @@ const useControllerTelemetry = ({
             locationCleanupRef.current?.();
             locationCleanupRef.current = null;
         };
-    }, [calculatedSpeedSharedValue, lineCurrent, phaseACurrent, rpmSharedValue, wattsSharedValue]);
+    }, [
+        calculatedSpeedSharedValue,
+        lineCurrent,
+        phaseACurrent,
+        rpmSharedValue,
+        wattsSharedValue,
+    ]);
 
     const hasReceivedBatteryInformation = useMemo(
         () => !!(device && batterySoc !== null && batteryVoltage !== null),
@@ -528,7 +547,7 @@ const useControllerTelemetry = ({
 
     const batteryColor = useMemo(() => {
         if (batterySoc == null) {
-            return 'text-secondary-300';
+            return 'text-secondary-500';
         }
         const value = parseInt(batterySoc, 10);
         if (Number.isNaN(value)) {
@@ -538,7 +557,7 @@ const useControllerTelemetry = ({
             return 'text-secondary-500';
         }
         if (value > 20) {
-            return 'text-yellow-600';
+            return 'text-yellow-500';
         }
         return 'text-red-500';
     }, [batterySoc]);

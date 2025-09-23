@@ -6,6 +6,7 @@ import React, { memo, useCallback, useMemo, useState } from 'react';
 import { HStack } from '@/components/ui/hstack';
 import { Button, ButtonText } from '@/components/ui/button';
 import {
+    LucideFuel,
     LucideMaximize2,
     LucideThermometer,
     LucideTimerOff,
@@ -177,6 +178,13 @@ const CurrentTripDisplay = memo(
                     value: `${estimatedDistanceRemainingInMeters} ${
                         prefersMph ? 'miles' : 'km'
                     }`,
+                    valueIcon: (
+                        <Icon
+                            as={LucideFuel}
+                            size={12}
+                            className="text-secondary-500"
+                        />
+                    ),
                 },
                 {
                     label: t('trip.stats.timeElapsed'),

@@ -4,7 +4,11 @@ import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import NumberTicker from '@/components/dashboard/NumberTicker';
 import { Icon } from '@/components/ui/icon';
-import { LucideLocateFixed, LucideBluetoothOff } from 'lucide-react-native';
+import {
+    LucideBluetoothOff,
+    LucideFuel,
+    LucideLocateFixed,
+} from 'lucide-react-native';
 import AnimatedBars from '@/components/dashboard/AnimatedAmps';
 import BatteryBar from '@/components/dashboard/BatteryBar';
 import Clock from '@/components/dashboard/Clock';
@@ -19,6 +23,7 @@ type StatItem = {
     label: string;
     value: string;
     valueClassName?: string;
+    icon?: React.ReactNode;
 };
 
 type Slide = {
@@ -119,11 +124,15 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                   value: `${tripSummary.distance} ${distanceUnit}`,
               },
               {
-                  label: t(
-                      'trip.stats.remainingDistance',
-                      'Remaining'
-                  ),
+                  label: t('trip.stats.remainingDistance', 'Remaining'),
                   value: `${tripSummary.remaining} ${distanceUnit}`,
+                  icon: (
+                      <Icon
+                          as={LucideFuel}
+                          size={12}
+                          className="text-secondary-500"
+                      />
+                  ),
               },
               {
                   label: prefersMph ? 'Wh/mi' : 'Wh/km',
@@ -260,9 +269,12 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                 {
                     key: 'no-trip',
                     content: (
-                        <View className="flex-1 items-start justify-center">
+                        <View className="flex-1 items-start justify-center py-6">
                             <Text className="text-secondary-400">
-                                {t('trip.noTripsFound')}
+                                {t(
+                                    'trip.noActiveTrip',
+                                    'No active trip right now.'
+                                )}
                             </Text>
                         </View>
                     ),
@@ -288,6 +300,7 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                                     label={stat.label}
                                     value={stat.value}
                                     valueClassName={stat.valueClassName}
+                                    icon={stat.icon}
                                 />
                             ))}
                             <HudClockStat
@@ -307,6 +320,7 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                                             label={stat.label}
                                             value={stat.value}
                                             valueClassName={stat.valueClassName}
+                                            icon={stat.icon}
                                         />
                                     ))}
                                 </View>
@@ -329,6 +343,7 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                                     label={stat.label}
                                     value={stat.value}
                                     valueClassName={stat.valueClassName}
+                                    icon={stat.icon}
                                 />
                             ))}
                         </View>
@@ -430,7 +445,7 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                             wattsLabel={t(
                                 'trip.stats.inputPower',
                                 'Input Power'
-                        )}
+                            )}
                             motorTempLabel={t('trip.stats.motorTemperature')}
                             controllerTempLabel="MOS"
                             style={{ alignSelf: 'stretch', flexGrow: 1 }}
@@ -483,6 +498,7 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                                     label={stat.label}
                                     value={stat.value}
                                     valueClassName={stat.valueClassName}
+                                    icon={stat.icon}
                                 />
                             ))}
                         </View>
@@ -495,9 +511,12 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
             slides.push({
                 key: 'no-trip-right',
                 content: (
-                    <View className="flex-1 items-start justify-center">
+                    <View className="flex-1 items-start justify-center py-6">
                         <Text className="text-secondary-400">
-                            {t('trip.noTripsFound')}
+                            {t(
+                                'trip.noActiveTrip',
+                                'No active trip right now.'
+                            )}
                         </Text>
                     </View>
                 ),
@@ -643,8 +662,9 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                                 <View
                                     style={{
                                         flex: 1,
-                                        paddingHorizontal:
-                                            !slide.disablePadding ? 24 : 0,
+                                        paddingHorizontal: !slide.disablePadding
+                                            ? 24
+                                            : 0,
                                     }}
                                 >
                                     {slide.content}
@@ -676,7 +696,7 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                         fontSize={gaugeFontSize}
                         width={gaugeWidth}
                     />
-                    <HStack className="items-center mt-2 gap-2">
+                    <HStack className="items-center justify-start self-start mt-2 gap-2">
                         {usesGpsSpeed && (
                             <Icon
                                 size={28}
@@ -702,7 +722,7 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                                     />
                                 </View>
                                 <Text
-                                    className={`${effectiveBatteryColor} text-2xl font-bold`}
+                                    className={`text-secondary-500 ${effectiveBatteryColor} text-2xl font-bold`}
                                 >
                                     {displayedBatteryVoltage}V
                                 </Text>
@@ -761,14 +781,17 @@ const ControllerLandscapeView = memo((props: ControllerLandscapeViewProps) => {
                                     height: '100%',
                                     flexShrink: 0,
                                     marginRight:
-                                        index === rightSlides.length - 1 ? 0 : 16,
+                                        index === rightSlides.length - 1
+                                            ? 0
+                                            : 16,
                                 }}
                             >
                                 <View
                                     style={{
                                         flex: 1,
-                                        paddingHorizontal:
-                                            !slide.disablePadding ? 16 : 0,
+                                        paddingHorizontal: !slide.disablePadding
+                                            ? 16
+                                            : 0,
                                     }}
                                 >
                                     {slide.content}
@@ -800,22 +823,27 @@ const HudStat = ({
     label,
     value,
     valueClassName,
+    icon,
 }: {
     label: string;
     value: string;
     valueClassName?: string;
+    icon?: React.ReactNode;
 }) => (
     <View className="w-full">
         <Text className="text-secondary-500 text-xs uppercase font-semibold">
             {label}
         </Text>
-        <Text
-            className={`text-secondary-600 text-xl font-bold ${
-                valueClassName ?? ''
-            }`}
-        >
-            {value}
-        </Text>
+        <HStack className="items-center gap-1">
+            <Text
+                className={`text-secondary-600 text-xl font-bold ${
+                    valueClassName ?? ''
+                }`}
+            >
+                {value}
+            </Text>
+            {icon}
+        </HStack>
     </View>
 );
 

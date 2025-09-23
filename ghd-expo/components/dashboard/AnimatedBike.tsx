@@ -190,16 +190,10 @@ const AnimatedBike = memo(
 
         const distanceFromRpmNumberForWattsLabel = useDerivedValue(() => {
             if (!font) return 0;
-            const numbersInRPM = `${wattsSharedValue.value}`;
-            const containsDash = numbersInRPM.includes('-');
-            const measurements = font.measureText(numbersInRPM);
-            return (
-                distanceFromRpmNumberForWatts.value +
-                ANDROID_OFFSET +
-                measurements.width +
-                (containsDash ? 2 : 0)
-            );
-        }, [distanceFromRpmNumberForWatts, font, wattsSharedValue]);
+            const wattsText = wattsSharedValueAsString.value;
+            const labelWidth = font.measureText(wattsText).width;
+            return distanceFromRpmNumberForWatts.value + labelWidth + 6;
+        }, [distanceFromRpmNumberForWatts, font, wattsSharedValueAsString]);
 
         const opacity = useDerivedValue(() => {
             if (rpmSharedValue.value === 0) {

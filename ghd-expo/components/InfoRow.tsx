@@ -10,12 +10,14 @@ const Row = memo(
         index,
         isClock = false,
         columns = 3,
+        valueIcon,
     }: {
         label: string | ReactElement;
         value: string | number | undefined;
         index: number;
         isClock?: boolean;
         columns?: 1 | 3;
+        valueIcon?: ReactElement;
     }) => {
         // three columns in every row, so we need to determine if this is the middle column
 
@@ -32,24 +34,40 @@ const Row = memo(
             };
         }, [columns, index]);
 
+        const alignmentClass = isMiddle
+            ? 'text-center'
+            : !isLeft
+              ? 'text-right'
+              : '';
+        const justifyClass = isMiddle
+            ? 'justify-center'
+            : !isLeft
+              ? 'justify-end'
+              : 'justify-start';
+
         return (
             <View className={columns === 3 ? 'w-1/3' : 'w-full'}>
                 <Text
-                    className={`${isMiddle ? 'text-center' : !isLeft ? 'text-right' : ''} text-secondary-600 text-sm font-bold uppercase`}
+                    className={`text-secondary-600 text-sm font-bold uppercase ${alignmentClass}`}
                 >
                     {label}
                 </Text>
                 {isClock ? (
                     <Clock
                         startTime={value}
-                        className={`text-secondary-500 text-lg font-bold ${isMiddle ? 'text-center' : !isLeft ? 'text-right' : ''}`}
+                        className={`text-secondary-500 text-lg font-bold ${alignmentClass}`}
                     />
                 ) : (
-                    <Text
-                        className={`${isMiddle ? 'text-center' : !isLeft ? 'text-right' : ''} text-secondary-500 text-lg font-bold`}
+                    <View
+                        className={`flex-row items-center gap-1 ${justifyClass}`}
                     >
-                        {value}
-                    </Text>
+                        <Text
+                            className={`text-secondary-500 text-lg font-bold ${alignmentClass}`}
+                        >
+                            {value}
+                        </Text>
+                        {valueIcon}
+                    </View>
                 )}
             </View>
         );

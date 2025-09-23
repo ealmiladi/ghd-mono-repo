@@ -5,8 +5,10 @@ import { Text } from '@/components/ui/text';
 import { HStack } from '@/components/ui/hstack';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Animated, {
-    interpolateColor,
+    FadeIn,
+    FadeOut,
     Layout,
+    interpolateColor,
     useAnimatedScrollHandler,
     useAnimatedStyle,
     useSharedValue,
@@ -330,6 +332,7 @@ const ControllerPage = ({ controller }: { controller: Controller }) => {
                 ? 'rgba(71,85,105,0.7)'
                 : 'rgba(226,232,240,0.7)';
 
+        console.log(heroAccent.value);
         if (heroAccent.value <= 0.01) {
             return {
                 shadowRadius: 12,
@@ -406,7 +409,10 @@ const ControllerPage = ({ controller }: { controller: Controller }) => {
             >
                 <View className="px-5">
                     <AnimatedCard
-                        layout={Layout.duration(220).springify().damping(32).stiffness(150)}
+                        layout={Layout.duration(220)
+                            .springify()
+                            .damping(32)
+                            .stiffness(150)}
                         className={heroCardClass}
                         style={[animatedView, heroCardAnimatedStyle]}
                     >
@@ -426,18 +432,33 @@ const ControllerPage = ({ controller }: { controller: Controller }) => {
                         ) : null}
                         {showHeroTelemetry && (
                             <>
-                                <View className="mt-4" style={{ width: 140 }}>
-                                    <BatteryBar
-                                        height={24}
-                                        socPercentage={
-                                            batterySoc
-                                                ? parseInt(batterySoc, 10)
-                                                : 0
-                                        }
-                                    />
-                                </View>
+                                <Animated.View
+                                    entering={FadeIn.duration(220)}
+                                    className="mt-4 w-full flex-row items-center gap-3"
+                                >
+                                    <View style={{ width: 140 }}>
+                                        <BatteryBar
+                                            height={24}
+                                            socPercentage={
+                                                batterySoc
+                                                    ? parseInt(batterySoc, 10)
+                                                    : 0
+                                            }
+                                        />
+                                    </View>
+                                    <Text
+                                        className={`${batteryColor} text-lg font-semibold`}
+                                    >
+                                        {batteryVoltage
+                                            ? `${batteryVoltage}V`
+                                            : '—'}
+                                    </Text>
+                                </Animated.View>
 
-                                <View className="mt-3">
+                                <Animated.View
+                                    entering={FadeIn.duration(220).delay(90)}
+                                    className="mt-3"
+                                >
                                     <GearPortion
                                         motorCutoffApplied={motorCutoffApplied}
                                         currentGear={currentGear}
@@ -445,16 +466,22 @@ const ControllerPage = ({ controller }: { controller: Controller }) => {
                                         hasReceivedBatteryInformation={
                                             hasReceivedBatteryInformation
                                         }
-                                        textClass="text-base"
+                                        emphasize
                                     />
-                                </View>
+                                </Animated.View>
                             </>
                         )}
                     </AnimatedCard>
 
                     {isTripActive && (
                         <View className="mt-6">
-                            <View className={cardClass}>
+                            <Animated.View
+                                layout={Layout.duration(220)
+                                    .springify()
+                                    .damping(32)
+                                    .stiffness(150)}
+                                className={cardClass}
+                            >
                                 <Heading className={sectionHeadingClass}>
                                     {t(
                                         'controller.currentTrip.title',
@@ -476,10 +503,12 @@ const ControllerPage = ({ controller }: { controller: Controller }) => {
                                 <View className="mt-3 flex-row items-center justify-between gap-6">
                                     <View>
                                         <NumberTicker
-                                            sharedValue={calculatedSpeedSharedValue}
+                                            sharedValue={
+                                                calculatedSpeedSharedValue
+                                            }
                                             width={160}
                                         />
-                                        <HStack className="items-center mt-2 gap-1">
+                                        <HStack className="items-center justify-start self-start mt-2 gap-1">
                                             {controller.preferGpsSpeed && (
                                                 <Icon
                                                     size={20}
@@ -504,9 +533,7 @@ const ControllerPage = ({ controller }: { controller: Controller }) => {
                                                 polePairsSharedValue
                                             }
                                             rpmSharedValue={rpmSharedValue}
-                                            wattsSharedValue={
-                                                wattsSharedValue
-                                            }
+                                            wattsSharedValue={wattsSharedValue}
                                             calculatedSpeedSharedValue={
                                                 calculatedSpeedSharedValue
                                             }
@@ -553,7 +580,7 @@ const ControllerPage = ({ controller }: { controller: Controller }) => {
                                         </ButtonText>
                                     </Button>
                                 </View>
-                            </View>
+                            </Animated.View>
                         </View>
                     )}
                 </View>
@@ -572,6 +599,30 @@ const ControllerPage = ({ controller }: { controller: Controller }) => {
                             {t('controller.quickActions', 'Quick actions')}
                         </Heading>
                         <View className="mt-4 gap-3">
+                            {device ? (
+                                <Animated.View
+                                    entering={FadeIn.duration(200)}
+                                    exiting={FadeOut.duration(200)}
+                                >
+                                    <Button
+                                        variant="solid"
+                                        size="lg"
+                                        onPress={openHud}
+                                    >
+                                        <Icon
+                                            as={LucideMaximize2}
+                                            size={18}
+                                            className="text-primary-50 mr-2"
+                                        />
+                                        <ButtonText>
+                                            {t(
+                                                'controller.currentTrip.fullscreen',
+                                                'Go fullscreen'
+                                            )}
+                                        </ButtonText>
+                                    </Button>
+                                </Animated.View>
+                            ) : null}
                             <Button
                                 variant="outline"
                                 size="lg"

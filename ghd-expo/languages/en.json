@@ -271,6 +271,7 @@
         "remainingDistance": "Remaining",
         "trips": "Trips",
         "noTripsFound": "No trips found.",
+        "noActiveTrip": "No active trip right now.",
         "deleteTrip": "Delete trip",
         "deleteTripDescription": "Are you sure you want to delete this trip? This action cannot be undone.",
         "endTrip": "End trip",

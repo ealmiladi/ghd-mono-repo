@@ -431,7 +431,7 @@ const ControllerPage = ({ controller }: { controller: Controller }) => {
             return 'text-secondary-500';
         }
         if (parseInt(batterySoc) > 20) {
-            return 'text-yellow-600';
+            return 'text-yellow-500';
         }
         return 'text-red-500';
     }, [batterySoc]);

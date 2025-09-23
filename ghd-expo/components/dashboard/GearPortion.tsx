@@ -9,6 +9,7 @@ const GearPortion = ({
     currentGearPower,
     hasReceivedBatteryInformation,
     textClass = 'text-lg',
+    emphasize = false,
 }) => {
     return (
         <View className="h-8">
@@ -19,7 +20,7 @@ const GearPortion = ({
                     className="flex-row items-center mt-1"
                 >
                     <GearIndicatorIcon
-                        textClass={textClass}
+                        textClass={emphasize ? 'text-xl font-semibold' : textClass}
                         motorCutoffApplied={motorCutoffApplied}
                         gear={currentGear}
                         gearPower={currentGearPower!}

@@ -9,7 +9,7 @@ import BatteryBar from '@/components/dashboard/BatteryBar';
 import AnimatedBars from '@/components/dashboard/AnimatedAmps';
 import Clock from '@/components/dashboard/Clock';
 import { Icon } from '@/components/ui/icon';
-import { LucideLocateFixed } from 'lucide-react-native';
+import { LucideFuel, LucideLocateFixed } from 'lucide-react-native';
 import { Controller } from '@/interfaces/Controller';
 import { Device } from 'react-native-ble-plx';
 import type { TripSummary } from '@/components/dashboard/types';
@@ -75,13 +75,7 @@ const ControllerPortraitView = ({
           : 'KPH';
 
     return (
-        <View
-            className="flex-1 px-6 py-6"
-            style={{
-                paddingBottom: portraitInsets.bottom + 20,
-                paddingTop: portraitInsets.top + 12,
-            }}
-        >
+        <View className="flex-1 px-6 py-6">
             <View className="flex-1 justify-between">
                 <View className="items-center">
                     <NumberTicker
@@ -90,7 +84,7 @@ const ControllerPortraitView = ({
                         fontSize={112}
                         width={340}
                     />
-                    <HStack className="items-center mt-2 gap-2">
+                    <HStack className="items-center justify-start self-start mt-2 gap-2">
                         {usesGpsSpeed && (
                             <Icon
                                 size={20}
@@ -104,18 +98,23 @@ const ControllerPortraitView = ({
                     </HStack>
                 </View>
 
-                <View className="gap-4">
+                <View className="gap-4 flex-1">
                     <View>
                         {showBatteryInformation ? (
                             <HStack className="items-center gap-4">
                                 <View className="flex-1">
                                     <BatteryBar
                                         height={24}
-                                        socPercentage={parseInt(displayedBatterySoc)}
+                                        socPercentage={parseInt(
+                                            displayedBatterySoc
+                                        )}
                                     />
                                 </View>
                                 <Text
-                                    className={`${effectiveBatteryColor} text-2xl font-bold`}
+                                    className={`${
+                                        effectiveBatteryColor ||
+                                        'text-secondary-600'
+                                    } text-2xl font-bold`}
                                 >
                                     {displayedBatteryVoltage}V
                                 </Text>
@@ -144,7 +143,10 @@ const ControllerPortraitView = ({
 
                     <HStack className="justify-between">
                         <HudTemperature
-                            title={t('trip.stats.controllerTemperature', 'Controller')}
+                            title={t(
+                                'trip.stats.controllerTemperature',
+                                'Controller'
+                            )}
                             value={mosTemperatureCelcius}
                             prefersFahrenheit={prefersFahrenheit}
                         />
@@ -193,6 +195,13 @@ const ControllerPortraitView = ({
                                     value={`${tripSummary.remaining} ${
                                         prefersMph ? 'mi' : 'km'
                                     }`}
+                                    icon={
+                                        <Icon
+                                            as={LucideFuel}
+                                            size={12}
+                                            className="text-secondary-500"
+                                        />
+                                    }
                                 />
                                 <HudStat
                                     label={t('trip.stats.cumulativeEnergy')}
@@ -228,9 +237,14 @@ const ControllerPortraitView = ({
                                 />
                             </HStack>
                         ) : (
-                            <Text className="text-secondary-400">
-                                {t('trip.noTripsFound')}
-                            </Text>
+                            <View className="w-full items-start justify-center">
+                                <Text className="text-secondary-400">
+                                    {t(
+                                        'trip.noActiveTrip',
+                                        'No active trip right now.'
+                                    )}
+                                </Text>
+                            </View>
                         )}
                     </View>
                 </View>
@@ -243,22 +257,27 @@ const HudStat = ({
     label,
     value,
     valueClassName,
+    icon,
 }: {
     label: string;
     value: string;
     valueClassName?: string;
+    icon?: React.ReactNode;
 }) => (
     <View className="w-1/2">
         <Text className="text-secondary-500 text-xs uppercase font-semibold">
             {label}
         </Text>
-        <Text
-            className={`text-secondary-600 text-xl font-bold ${
-                valueClassName ?? ''
-            }`}
-        >
-            {value}
-        </Text>
+        <HStack className="items-center gap-1">
+            <Text
+                className={`text-secondary-600 text-xl font-bold ${
+                    valueClassName ?? ''
+                }`}
+            >
+                {value}
+            </Text>
+            {icon}
+        </HStack>
     </View>
 );
 
