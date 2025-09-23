@@ -271,11 +271,11 @@ const RouteReplay = ({
                           )}°F`
                         : `${toFixed(Number(currentPoint.motorTemperature), 0)}°C`
                     : '—';
-            const sag =
-                currentPoint.voltage !== null &&
-                currentPoint.voltage !== undefined
-                    ? `${toFixed(Number(currentPoint.voltage), 1)} V`
-                    : '—';
+                const sag =
+                    currentPoint.voltageSag !== undefined &&
+                    currentPoint.voltageSag !== null
+                        ? `${toFixed(Number(currentPoint.voltageSag), 1)} V`
+                        : '—';
 
             baseCards.push(
                 {

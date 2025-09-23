@@ -78,7 +78,10 @@ const Trips = memo(({ route }: { route: any }) => {
         const totalDistanceDisplay = prefersMph
             ? `${toFixed(totalDistanceMeters / 1609.34, 1)} ${t('common.miles')}`
             : `${toFixed(totalDistanceMeters / 1000, 1)} ${t('common.kilometers')}`;
-        const totalEnergyDisplay = `${toFixed(totalEnergyWh, 1)} Wh`;
+        const totalEnergyDisplay =
+            totalEnergyWh >= 1000
+                ? `${toFixed(totalEnergyWh / 1000, 2)} kWh`
+                : `${toFixed(totalEnergyWh, 1)} Wh`;
         const avgConsumptionValue = prefersMph ? avgWhPerMile : avgWhPerKm;
         const avgConsumptionDisplay = `${toFixed(avgConsumptionValue, 1)} ${
             prefersMph ? 'Wh/mi' : 'Wh/km'
@@ -138,7 +141,7 @@ const Trips = memo(({ route }: { route: any }) => {
 
             {metricsSummary && (
                 <View className="px-5">
-                    <View className="rounded-3xl bg-secondary-100 px-5 py-6 mb-6">
+                    <View className="rounded-3xl bg-secondary-100 px-5 py-6">
                         <Heading className="text-2xl font-semibold mb-4">
                             {t('trip.summary.title')}
                         </Heading>
@@ -180,6 +183,13 @@ const Trips = memo(({ route }: { route: any }) => {
                                 />
                             )}
                         </View>
+                    </View>
+                    <View className="flex-row items-center my-6">
+                        <View className="h-px flex-1 bg-secondary-200" />
+                        <Text className="px-3 text-secondary-400 text-xs uppercase font-semibold">
+                            {t('trip.list.title', 'Individual trips')}
+                        </Text>
+                        <View className="h-px flex-1 bg-secondary-200" />
                     </View>
                 </View>
             )}
@@ -265,7 +275,10 @@ const TripListCard = memo(
         }`;
 
         const energyWh = Number(trip.cumulativeEnergyWh) || 0;
-        const energyDisplay = `${toFixed(energyWh, 1)} Wh`;
+        const energyDisplay =
+            energyWh >= 1000
+                ? `${toFixed(energyWh / 1000, 2)} kWh`
+                : `${toFixed(energyWh, 1)} Wh`;
 
         const whPerUnit = distanceValue > 0 ? energyWh / distanceValue : 0;
         const whPerUnitLabel = prefersMph ? 'Wh/mi' : 'Wh/km';
@@ -443,10 +456,13 @@ const TripWithToast = memo(({ route, navigation }: any) => {
     const maxSpeedDisplay = `${toFixed(maxSpeedValue, 0)} ${wheelSpeedUnit}`;
     const avgSpeedDisplay = `${toFixed(avgSpeedValue, 0)} ${wheelSpeedUnit}`;
 
-    const cumulativeEnergyDisplay = `${toFixed(
-        new BigNumber(cumulativeEnergyWh).toNumber(),
-        2
-    )} Wh`;
+    const cumulativeEnergyValue = new BigNumber(
+        cumulativeEnergyWh
+    ).toNumber();
+    const cumulativeEnergyDisplay =
+        cumulativeEnergyValue >= 1000
+            ? `${toFixed(cumulativeEnergyValue / 1000, 2)} kWh`
+            : `${toFixed(cumulativeEnergyValue, 2)} Wh`;
 
     const gpsSamples = new BigNumber(gpsSampleCount || 0).toNumber();
     const gpsMaxSpeedDisplay = gpsSamples

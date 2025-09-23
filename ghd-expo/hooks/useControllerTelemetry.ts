@@ -125,6 +125,14 @@ const useControllerTelemetry = ({
                 return;
             }
 
+            const lastSag = stateForController.currentTrip?.lastVoltageSag;
+            const sagValue =
+                lastSag === undefined || lastSag === null
+                    ? null
+                    : BigNumber.isBigNumber(lastSag)
+                    ? lastSag.toNumber()
+                    : Number(lastSag);
+
             stateForController.currentTrip.recordRoutePoint({
                 timestamp,
                 latitude,
@@ -152,6 +160,7 @@ const useControllerTelemetry = ({
                     stateForController.motorTemperatureCelcius !== undefined
                         ? Number(stateForController.motorTemperatureCelcius)
                         : null,
+                voltageSag: sagValue,
             });
 
             stateForController.currentTrip.publishTripUpdate();

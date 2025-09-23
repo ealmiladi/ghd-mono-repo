@@ -717,6 +717,13 @@ export class CurrentTrip {
             }
         }
 
+        const sagValue =
+            sample.voltageSag !== undefined
+                ? sample.voltageSag === null
+                    ? null
+                    : Number(sample.voltageSag)
+                : this.lastVoltageSag?.toNumber?.() ?? null;
+
         const newPoint: RoutePoint = {
             timestamp,
             latitude: sample.latitude,
@@ -745,6 +752,7 @@ export class CurrentTrip {
                 sample.motorTemperature === undefined
                     ? null
                     : Number(sample.motorTemperature),
+            voltageSag: sagValue,
         };
 
         this.route.push(newPoint);
@@ -764,4 +772,5 @@ export interface RoutePoint {
     inputPower: number | null;
     mosTemperature: number | null;
     motorTemperature: number | null;
+    voltageSag?: number | null;
 }
