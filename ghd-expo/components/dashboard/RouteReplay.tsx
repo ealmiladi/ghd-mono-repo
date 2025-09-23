@@ -131,7 +131,7 @@ const RouteReplay = ({
         }, 750);
 
         return () => clearInterval(interval);
-    }, [isPlaying, sanitizedRoute.length]);
+    }, [activeIndex, isPlaying, sanitizedRoute.length]);
 
     const coordinates = useMemo(
         () =>
@@ -230,51 +230,80 @@ const RouteReplay = ({
                         ? `${toFixed(maxInputPower, 0)} W`
                         : '—',
             },
-            {
-                label: t('trip.routeReplay.maxCurrent', 'Max Current'),
-                value:
-                    maxLineCurrent !== undefined && maxLineCurrent !== null
-                        ? `${toFixed(maxLineCurrent, 0)} A`
-                        : '—',
-            },
-            {
-                label: t('trip.routeReplay.maxRpm', 'Max RPM'),
-                value:
-                    maxRPM !== undefined && maxRPM !== null
-                        ? `${toFixed(maxRPM, 0)}`
-                        : '—',
-            },
         ],
-        [
-            maxInputPower,
-            maxLineCurrent,
-            maxRPM,
-            maxVoltageSag,
-            sagToneClass,
-            t,
-        ]
+        [maxInputPower, maxVoltageSag, sagToneClass, t]
     );
 
     const detailCards = useMemo(
-        () => [
-            {
-                label: t('trip.routeReplay.voltageLabel', 'Voltage'),
-                value: formattedVoltage,
-            },
-            {
-                label: t('trip.routeReplay.currentLabel', 'Line Current'),
-                value: formattedCurrent,
-            },
-            {
-                label: t('trip.routeReplay.powerLabel', 'Power'),
-                value: formattedPower,
-            },
-            {
-                label: t('trip.routeReplay.temperatureLabel', 'Temps'),
-                value: formattedTemps(),
-            },
-        ],
-        [formattedCurrent, formattedPower, formattedVoltage, formattedTemps, t]
+        () => {
+            const baseCards = [
+                {
+                    label: t('trip.routeReplay.voltageLabel', 'Voltage'),
+                    value: formattedVoltage,
+                },
+                {
+                    label: t('trip.routeReplay.currentLabel', 'Line Current'),
+                    value: formattedCurrent,
+                },
+                {
+                    label: t('trip.routeReplay.powerLabel', 'Power'),
+                    value: formattedPower,
+                },
+            ];
+
+            if (currentPoint) {
+                const mos =
+                    currentPoint.mosTemperature !== null &&
+                    currentPoint.mosTemperature !== undefined
+                        ? prefersFahrenheit
+                            ? `${toFixed(
+                                  Number(currentPoint.mosTemperature) * 1.8 + 32,
+                                  0
+                              )}°F`
+                            : `${toFixed(Number(currentPoint.mosTemperature), 0)}°C`
+                        : '—';
+                const motor =
+                    currentPoint.motorTemperature !== null &&
+                    currentPoint.motorTemperature !== undefined
+                        ? prefersFahrenheit
+                            ? `${toFixed(
+                                  Number(currentPoint.motorTemperature) * 1.8 + 32,
+                                  0
+                              )}°F`
+                            : `${toFixed(Number(currentPoint.motorTemperature), 0)}°C`
+                        : '—';
+                const sag =
+                    currentPoint.voltage !== null &&
+                    currentPoint.voltage !== undefined
+                        ? `${toFixed(Number(currentPoint.voltage), 1)} V`
+                        : '—';
+
+                baseCards.push(
+                    {
+                        label: t('trip.routeReplay.mosTemp', 'Controller Temp'),
+                        value: mos,
+                    },
+                    {
+                        label: t('trip.routeReplay.motorTemp', 'Motor Temp'),
+                        value: motor,
+                    },
+                    {
+                        label: t('trip.routeReplay.sag', 'Voltage sag'),
+                        value: sag,
+                    }
+                );
+            }
+
+            return baseCards;
+        },
+        [
+            currentPoint,
+            formattedCurrent,
+            formattedPower,
+            formattedVoltage,
+            prefersFahrenheit,
+            t,
+        ]
     );
 
     if (!sanitizedRoute.length) {
@@ -320,24 +349,24 @@ const RouteReplay = ({
                     )}
                 </MapView>
 
-                <View className="absolute left-4 right-4 top-4">
-                    <View className="rounded-3xl bg-background-0/90 px-4 py-3">
-                        <View className="items-center">
+                <View className="absolute left-0 right-0 top-0">
+                    <View className="flex-row gap-3 px-5 py-4">
+                        <View className="flex-1 items-start justify-center">
                             <NumberTicker
                                 hideWhenZero={false}
                                 sharedValue={speedSharedValue}
-                                fontSize={56}
-                                width={220}
+                                fontSize={48}
+                                width={160}
                             />
-                            <Text className="text-secondary-500 text-sm font-semibold">
-                                {prefersMph ? 'MPH' : 'KM/H'}
+                            <Text className="text-secondary-0 text-sm uppercase font-bold tracking-wide mt-1">
+                                {prefersMph ? 'GPS MPH' : 'GPS KM/H'}
                             </Text>
                         </View>
-                        <View className="mt-3 flex-row flex-wrap gap-3">
+                        <View className="flex-row items-start gap-2">
                             {summaryChips.map((chip) => (
                                 <View
                                     key={chip.label}
-                                    className="rounded-2xl bg-secondary-200 px-3 py-2"
+                                    className="rounded-2xl bg-background-0/85 px-3 py-2"
                                 >
                                     <Text className="text-secondary-400 text-xs uppercase font-semibold">
                                         {chip.label}
@@ -356,22 +385,25 @@ const RouteReplay = ({
                 </View>
             </View>
 
-            <View className="flex-row items-center justify-between mt-4">
-                <Button
-                    variant="solid"
-                    action="primary"
-                    size="sm"
-                    disabled={sanitizedRoute.length <= 1}
-                    onPress={() => {
-                        if (sanitizedRoute.length <= 1) {
-                            return;
-                        }
-                        setIsPlaying((prev) => !prev);
-                    }}
-                >
-                    <Icon
-                        as={isPlaying ? LucidePause : LucidePlay}
-                        size={20}
+                <View className="flex-row items-center gap-3 mt-4">
+                    <Button
+                        variant="solid"
+                        action="primary"
+                        size="sm"
+                        disabled={sanitizedRoute.length <= 1}
+                        onPress={() => {
+                            if (sanitizedRoute.length <= 1) {
+                                return;
+                            }
+                            if (activeIndex >= sanitizedRoute.length - 1) {
+                                setActiveIndex(0);
+                            }
+                            setIsPlaying((prev) => !prev);
+                        }}
+                    >
+                        <Icon
+                            as={isPlaying ? LucidePause : LucidePlay}
+                            size={20}
                         className="text-secondary-50 mr-2"
                     />
                     <ButtonText>
@@ -380,12 +412,12 @@ const RouteReplay = ({
                             : t('trip.routeReplay.play')}
                     </ButtonText>
                 </Button>
-                <View className="flex-1 ml-4">
-                    <Slider
-                        minimumValue={0}
-                        maximumValue={Math.max(sanitizedRoute.length - 1, 0)}
-                        step={1}
-                        value={activeIndex}
+                    <View className="flex-1">
+                        <Slider
+                            minimumValue={0}
+                            maximumValue={Math.max(sanitizedRoute.length - 1, 0)}
+                            step={1}
+                            value={activeIndex}
                         onValueChange={(value) => {
                             const clampedIndex = Math.min(
                                 Math.max(Math.round(value), 0),
@@ -395,14 +427,14 @@ const RouteReplay = ({
                             setIsPlaying(false);
                         }}
                         disabled={sanitizedRoute.length <= 1}
-                        minimumTrackTintColor="#2563eb"
-                        maximumTrackTintColor="#cbd5f5"
-                        thumbTintColor="#2563eb"
-                    />
-                    <Text className="text-secondary-500 mt-1 text-right">
-                        {timestampLabel}
-                    </Text>
-                </View>
+                        minimumTrackTintColor="#2563EB"
+                        maximumTrackTintColor="#CBD5F5"
+                        thumbTintColor="#1E3A8A"
+                        />
+                        <Text className="text-secondary-500 mt-1 text-right">
+                            {timestampLabel}
+                        </Text>
+                    </View>
             </View>
 
             <View className="mt-4 flex-row flex-wrap gap-3">

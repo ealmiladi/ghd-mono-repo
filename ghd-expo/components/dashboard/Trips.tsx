@@ -10,9 +10,8 @@ import { Heading } from '@/components/ui/heading';
 import { Text } from '@/components/ui/text';
 import { toFixed } from '@/utils';
 import { DateTime } from 'luxon';
-import { HStack } from '@/components/ui/hstack';
 import { Icon } from '@/components/ui/icon';
-import { LucideBike, LucideChevronRight } from 'lucide-react-native';
+import { LucideChevronRight } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SoCEstimator } from '@/utils/soc-estimator';
 import { Button, ButtonText } from '@/components/ui/button';
@@ -121,168 +120,271 @@ const Trips = memo(({ route }: { route: any }) => {
     }, [controller, prefersMph, t]);
 
     return (
-        <ScrollView className="flex-1 p-4">
-            <Heading className="text-3xl mb-4">{t('trip.trips')}</Heading>
+        <ScrollView
+            className="flex-1 bg-background-0"
+            contentContainerStyle={{ paddingBottom: 96 }}
+        >
+            <View className="px-5 pt-6 pb-4">
+                <Heading className="text-3xl font-semibold">
+                    {t('trip.trips')}
+                </Heading>
+                <Text className="text-secondary-500 mt-1">
+                    {t(
+                        'trip.summary.description',
+                        'Review logged rides, energy use, and route telemetry.'
+                    )}
+                </Text>
+            </View>
 
             {metricsSummary && (
-                <View className="bg-secondary-100 rounded-xl p-4 mb-6">
-                    <Heading className="text-xl">
-                        {t('trip.summary.title')}
-                    </Heading>
-                    <View className="mt-1 w-full">
-                        <TripDetail
-                            label={t('trip.summary.totalTrips')}
-                            value={`${metricsSummary.tripCount}`}
-                        />
-                        <TripDetail
-                            label={t('trip.summary.totalDistance')}
-                            value={metricsSummary.totalDistanceDisplay}
-                        />
-                        <TripDetail
-                            label={t('trip.summary.totalEnergy')}
-                            value={metricsSummary.totalEnergyDisplay}
-                        />
-                        <TripDetail
-                            label={t('trip.summary.avgConsumption')}
-                            value={metricsSummary.avgConsumptionDisplay}
-                        />
-                        <TripDetail
-                            label={t('trip.summary.totalDuration')}
-                            value={metricsSummary.totalDurationDisplay}
-                        />
-                        <TripDetail
-                            label={t('trip.stats.maxVoltageSag')}
-                            value={metricsSummary.maxVoltageSagDisplay}
-                        />
-                        {metricsSummary.gpsSampleCount > 0 && (
-                            <TripDetail
-                                label={t('trip.stats.maxSpeedGps')}
-                                value={metricsSummary.gpsMaxSpeedDisplay}
+                <View className="px-5">
+                    <View className="rounded-3xl bg-secondary-100 px-5 py-6 mb-6">
+                        <Heading className="text-2xl font-semibold mb-4">
+                            {t('trip.summary.title')}
+                        </Heading>
+                        <View className="flex-row flex-wrap -mx-2">
+                            <SummaryMetricTile
+                                label={t('trip.summary.totalTrips')}
+                                value={`${metricsSummary.tripCount}`}
                             />
-                        )}
-                        {metricsSummary.gpsSampleCount > 0 && (
-                            <TripDetail
-                                label={t('trip.stats.avgSpeedGps')}
-                                value={metricsSummary.gpsAvgSpeedDisplay}
+                            <SummaryMetricTile
+                                label={t('trip.summary.totalDistance')}
+                                value={metricsSummary.totalDistanceDisplay}
                             />
-                        )}
+                            <SummaryMetricTile
+                                label={t('trip.summary.totalEnergy')}
+                                value={metricsSummary.totalEnergyDisplay}
+                            />
+                            <SummaryMetricTile
+                                label={t('trip.summary.avgConsumption')}
+                                value={metricsSummary.avgConsumptionDisplay}
+                            />
+                            <SummaryMetricTile
+                                label={t('trip.summary.totalDuration')}
+                                value={metricsSummary.totalDurationDisplay}
+                            />
+                            <SummaryMetricTile
+                                label={t('trip.stats.maxVoltageSag')}
+                                value={metricsSummary.maxVoltageSagDisplay}
+                            />
+                            {metricsSummary.gpsSampleCount > 0 && (
+                                <SummaryMetricTile
+                                    label={t('trip.stats.maxSpeedGps')}
+                                    value={metricsSummary.gpsMaxSpeedDisplay}
+                                />
+                            )}
+                            {metricsSummary.gpsSampleCount > 0 && (
+                                <SummaryMetricTile
+                                    label={t('trip.stats.avgSpeedGps')}
+                                    value={metricsSummary.gpsAvgSpeedDisplay}
+                                />
+                            )}
+                        </View>
                     </View>
                 </View>
             )}
 
             {loading && <Spinner />}
             {!trips.length && !loading && (
-                <Text className="text-secondary-500 text-center">
+                <Text className="text-secondary-500 text-center px-5">
                     {t('trip.noTripsFound')}
                 </Text>
             )}
-            {trips.map((trip, index) => (
-                <CondensedTrip
-                    key={index}
-                    trip={trip}
-                    serialNumber={serialNumber}
-                />
-            ))}
+
+            <View className="px-5 gap-5">
+                {trips.map((trip, index) => (
+                    <TripListCard
+                        key={index}
+                        trip={trip}
+                        serialNumber={serialNumber}
+                        prefersMph={prefersMph}
+                    />
+                ))}
+            </View>
         </ScrollView>
     );
 });
 
-const CondensedTrip = memo(
-    ({ trip, serialNumber }: { trip: CurrentTrip; serialNumber: string }) => {
-        // Destructuring the trip object
-        const {
-            distanceInMeters,
-            startTime,
-            endTime,
-            cumulativeEnergyWh,
-            maxSpeedInMeters,
-        } = trip;
+const SummaryMetricTile = ({
+    label,
+    value,
+}: {
+    label: string;
+    value: string;
+}) => (
+    <View className="w-1/2 px-2 mb-4">
+        <Text className="text-secondary-400 text-xs uppercase font-semibold">
+            {label}
+        </Text>
+        <Text className="text-secondary-600 text-xl font-bold">{value}</Text>
+    </View>
+);
 
+SummaryMetricTile.displayName = 'SummaryMetricTile';
+
+const TripStatPill = ({
+    label,
+    value,
+    tone,
+}: {
+    label: string;
+    value: string;
+    tone?: string;
+}) => (
+    <View className="w-1/2 px-2 mb-4">
+        <Text className="text-secondary-400 text-xs uppercase font-semibold">
+            {label}
+        </Text>
+        <Text className={`text-secondary-600 text-lg font-bold ${tone ?? ''}`}>
+            {value}
+        </Text>
+    </View>
+);
+
+TripStatPill.displayName = 'TripStatPill';
+
+const TripListCard = memo(
+    ({
+        trip,
+        serialNumber,
+        prefersMph,
+    }: {
+        trip: CurrentTrip;
+        serialNumber: string;
+        prefersMph: boolean;
+    }) => {
         const navigation: any = useNavigation();
-        const { prefersMph, prefersFahrenheit } = useUser();
         const { t } = useTranslation();
 
-        // Convert distance using BigNumber
-        const distance = new BigNumber(distanceInMeters)
-            .multipliedBy(prefersMph ? 0.000621371 : 0.001) // Convert meters to miles or kilometers
-            .toFixed(1);
+        const distanceMeters = Number(trip.distanceInMeters) || 0;
+        const distanceValue = prefersMph
+            ? distanceMeters / 1609.34
+            : distanceMeters / 1000;
+        const distanceDisplay = `${toFixed(distanceValue, 1)} ${
+            prefersMph ? t('common.miles') : t('common.kilometers')
+        }`;
 
-        // Convert max speed using BigNumber
-        const maxSpeed = new BigNumber(maxSpeedInMeters)
-            .multipliedBy(prefersMph ? 2.23694 : 3.6) // Convert m/s to mph or km/h
-            .toFixed(0);
+        const energyWh = Number(trip.cumulativeEnergyWh) || 0;
+        const energyDisplay = `${toFixed(energyWh, 1)} Wh`;
 
-        // Format cumulative energy with BigNumber
-        const cumulativeEnergy = new BigNumber(cumulativeEnergyWh).toFixed(2);
+        const whPerUnit = distanceValue > 0 ? energyWh / distanceValue : 0;
+        const whPerUnitLabel = prefersMph ? 'Wh/mi' : 'Wh/km';
+        const whPerUnitDisplay = `${toFixed(whPerUnit, 1)} ${whPerUnitLabel}`;
 
-        // Format start time
-        const tripStartFormatted = DateTime.fromMillis(
-            Number(startTime || 0)
-        ).toLocaleString(DateTime.DATETIME_MED);
+        const maxSpeedValue =
+            Number(trip.maxSpeedInMeters || 0) * (prefersMph ? 2.23694 : 3.6);
+        const maxSpeedDisplay = `${toFixed(maxSpeedValue, 0)} ${
+            prefersMph ? 'mph' : 'km/h'
+        }`;
 
-        // Calculate trip duration using BigNumber
-        const tripDuration =
-            new BigNumber(
-                Number(endTime || Date.now()) - Number(startTime || Date.now())
-            )
-                .dividedBy(60000) // Convert milliseconds to minutes
-                .toFixed(1) + ' min';
+        const gpsSamples = Number(trip.gpsSampleCount || 0);
+        const gpsMaxSpeedDisplay = gpsSamples
+            ? `${toFixed(
+                  Number(trip.gpsMaxSpeedInMeters || 0) *
+                      (prefersMph ? 2.23694 : 3.6),
+                  0
+              )} ${prefersMph ? 'mph' : 'km/h'}`
+            : null;
+
+        const sagValue =
+            trip.maxVoltageSag !== undefined && trip.maxVoltageSag !== null
+                ? Number(trip.maxVoltageSag)
+                : null;
+        const sagTone = sagValue && sagValue > 7 ? 'text-error-500' : undefined;
+        const sagDisplay =
+            sagValue !== null ? `${toFixed(sagValue, 1)} V` : '—';
+
+        const tripStart = DateTime.fromMillis(Number(trip.startTime || 0));
+        const tripEnd = trip.endTime
+            ? DateTime.fromMillis(Number(trip.endTime))
+            : null;
+        const dateLabel = tripStart.toFormat('MMM dd, yyyy');
+        const timeWindow = `${tripStart.toFormat('h:mm a')}${
+            tripEnd ? ' → ' + tripEnd.toFormat('h:mm a') : ''
+        }`;
+
+        const durationMinutes = trip.endTime
+            ? (Number(trip.endTime) - Number(trip.startTime || 0)) / 60000
+            : null;
+        const durationDisplay =
+            durationMinutes !== null
+                ? `${toFixed(durationMinutes, 1)} min`
+                : t('trip.stats.ongoing', 'Ongoing');
+
+        const routeSamples = Array.isArray(trip.route) ? trip.route.length : 0;
 
         return (
             <TouchableOpacity
-                onPress={() => {
+                activeOpacity={0.9}
+                className="rounded-3xl bg-secondary-100"
+                onPress={() =>
                     navigation.navigate('TripDetail', {
                         trip,
                         serialNumber,
-                    });
-                }}
+                    })
+                }
             >
-                <View className="bg-secondary-100 rounded-xl p-4 mb-6 w-full">
-                    <HStack className="justify-between items-center w-full">
-                        <Text className="text-primary-500 text-lg font-bold">
-                            {distance}
-                            {prefersMph ? 'mi' : 'km'}
-                        </Text>
-                        <Text className="text-primary-500 text-lg font-bold">
-                            {tripStartFormatted}
-                        </Text>
-                    </HStack>
-                    <HStack className={'items-center justify-between'}>
-                        <View className="flex-1">
-                            <HStack className="mt-2 gap-2 w-full items-start">
-                                <View className="rounded-md bg-secondary-200 items-center justify-center p-2">
-                                    <Icon
-                                        size={30}
-                                        as={LucideBike}
-                                        className="text-secondary-400"
-                                    />
-                                </View>
-                                <View className="flex-1 pl-2">
-                                    <Text className="text-secondary-500 font-semibold">
-                                        {t('common.consumption')}{' '}
-                                        {cumulativeEnergy}Wh, {tripDuration}
-                                    </Text>
-                                    <Text className="text-secondary-500">
-                                        {t('trip.stats.maxSpeed')}: {maxSpeed}
-                                        {prefersMph ? 'mph' : 'km/h'}
-                                    </Text>
-                                </View>
-                            </HStack>
+                <View className="px-5 py-6">
+                    <View className="flex-row items-start justify-between">
+                        <View className="flex-1 pr-3">
+                            <Heading className="text-xl font-semibold">
+                                {dateLabel}
+                            </Heading>
+                            <Text className="text-secondary-500 text-sm mt-1">
+                                {timeWindow}
+                            </Text>
                         </View>
-                        <View className="pl-2">
-                            <Icon
-                                size={40}
-                                as={LucideChevronRight}
-                                className="text-secondary-500"
+                        <Icon
+                            as={LucideChevronRight}
+                            size={20}
+                            className="text-secondary-400"
+                        />
+                    </View>
+
+                    <View className="mt-4 flex-row flex-wrap -mx-2">
+                        <TripStatPill
+                            label={t('trip.stats.distance')}
+                            value={distanceDisplay}
+                        />
+                        <TripStatPill
+                            label={t('trip.stats.energyConsumed')}
+                            value={energyDisplay}
+                        />
+                        <TripStatPill
+                            label={whPerUnitLabel}
+                            value={whPerUnitDisplay}
+                        />
+                        <TripStatPill
+                            label={t('trip.stats.duration')}
+                            value={durationDisplay}
+                        />
+                        <TripStatPill
+                            label={t('trip.stats.maxSpeedCalculated')}
+                            value={maxSpeedDisplay}
+                        />
+                        {gpsMaxSpeedDisplay && (
+                            <TripStatPill
+                                label={t('trip.stats.maxSpeedGps')}
+                                value={gpsMaxSpeedDisplay}
                             />
-                        </View>
-                    </HStack>
+                        )}
+                        <TripStatPill
+                            label={t('trip.stats.maxVoltageSag')}
+                            value={sagDisplay}
+                            tone={sagTone}
+                        />
+                        <TripStatPill
+                            label={t('trip.routeReplay.samples', 'Samples')}
+                            value={`${routeSamples}`}
+                        />
+                    </View>
                 </View>
             </TouchableOpacity>
         );
     }
 );
 
+TripListCard.displayName = 'TripListCard';
 const Trip = memo(({ route, navigation }: any) => {
     return (
         <View className="flex-1">
@@ -630,8 +732,6 @@ Trips.displayName = 'Trips';
 Trip.displayName = 'Trip';
 TripWithToast.displayName = 'TripWithToast';
 TripDetail.displayName = 'TripDetail';
-CondensedTrip.displayName = 'CondensedTrip';
-
-export { Trips, Trip, TripDetail, CondensedTrip };
+export { Trips, Trip, TripDetail, TripListCard };
 
 export default Trips;

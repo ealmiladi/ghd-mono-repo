@@ -351,5 +351,12 @@
         "boost": "Boost"
       }
     }
+  },
+  "trip": {
+    "routeReplay": {
+      "mosTemp": "Controller Temp",
+      "motorTemp": "Motor Temp",
+      "sag": "Voltage sag"
+    }
   }
 }
