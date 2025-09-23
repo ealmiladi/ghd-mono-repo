@@ -234,77 +234,74 @@ const RouteReplay = ({
         [maxInputPower, maxVoltageSag, sagToneClass, t]
     );
 
-    const detailCards = useMemo(
-        () => {
-            const baseCards = [
+    const detailCards = useMemo(() => {
+        const baseCards = [
+            {
+                label: t('trip.routeReplay.voltageLabel', 'Voltage'),
+                value: formattedVoltage,
+            },
+            {
+                label: t('trip.routeReplay.currentLabel', 'Line Current'),
+                value: formattedCurrent,
+            },
+            {
+                label: t('trip.routeReplay.powerLabel', 'Power'),
+                value: formattedPower,
+            },
+        ];
+
+        if (currentPoint) {
+            const mos =
+                currentPoint.mosTemperature !== null &&
+                currentPoint.mosTemperature !== undefined
+                    ? prefersFahrenheit
+                        ? `${toFixed(
+                              Number(currentPoint.mosTemperature) * 1.8 + 32,
+                              0
+                          )}°F`
+                        : `${toFixed(Number(currentPoint.mosTemperature), 0)}°C`
+                    : '—';
+            const motor =
+                currentPoint.motorTemperature !== null &&
+                currentPoint.motorTemperature !== undefined
+                    ? prefersFahrenheit
+                        ? `${toFixed(
+                              Number(currentPoint.motorTemperature) * 1.8 + 32,
+                              0
+                          )}°F`
+                        : `${toFixed(Number(currentPoint.motorTemperature), 0)}°C`
+                    : '—';
+            const sag =
+                currentPoint.voltage !== null &&
+                currentPoint.voltage !== undefined
+                    ? `${toFixed(Number(currentPoint.voltage), 1)} V`
+                    : '—';
+
+            baseCards.push(
                 {
-                    label: t('trip.routeReplay.voltageLabel', 'Voltage'),
-                    value: formattedVoltage,
+                    label: t('trip.routeReplay.mosTemp', 'Controller Temp'),
+                    value: mos,
                 },
                 {
-                    label: t('trip.routeReplay.currentLabel', 'Line Current'),
-                    value: formattedCurrent,
+                    label: t('trip.routeReplay.motorTemp', 'Motor Temp'),
+                    value: motor,
                 },
                 {
-                    label: t('trip.routeReplay.powerLabel', 'Power'),
-                    value: formattedPower,
-                },
-            ];
+                    label: t('trip.routeReplay.sag', 'Voltage sag'),
+                    value: sag,
+                }
+            );
+        }
 
-            if (currentPoint) {
-                const mos =
-                    currentPoint.mosTemperature !== null &&
-                    currentPoint.mosTemperature !== undefined
-                        ? prefersFahrenheit
-                            ? `${toFixed(
-                                  Number(currentPoint.mosTemperature) * 1.8 + 32,
-                                  0
-                              )}°F`
-                            : `${toFixed(Number(currentPoint.mosTemperature), 0)}°C`
-                        : '—';
-                const motor =
-                    currentPoint.motorTemperature !== null &&
-                    currentPoint.motorTemperature !== undefined
-                        ? prefersFahrenheit
-                            ? `${toFixed(
-                                  Number(currentPoint.motorTemperature) * 1.8 + 32,
-                                  0
-                              )}°F`
-                            : `${toFixed(Number(currentPoint.motorTemperature), 0)}°C`
-                        : '—';
-                const sag =
-                    currentPoint.voltage !== null &&
-                    currentPoint.voltage !== undefined
-                        ? `${toFixed(Number(currentPoint.voltage), 1)} V`
-                        : '—';
-
-                baseCards.push(
-                    {
-                        label: t('trip.routeReplay.mosTemp', 'Controller Temp'),
-                        value: mos,
-                    },
-                    {
-                        label: t('trip.routeReplay.motorTemp', 'Motor Temp'),
-                        value: motor,
-                    },
-                    {
-                        label: t('trip.routeReplay.sag', 'Voltage sag'),
-                        value: sag,
-                    }
-                );
-            }
-
-            return baseCards;
-        },
-        [
-            currentPoint,
-            formattedCurrent,
-            formattedPower,
-            formattedVoltage,
-            prefersFahrenheit,
-            t,
-        ]
-    );
+        return baseCards;
+    }, [
+        currentPoint,
+        formattedCurrent,
+        formattedPower,
+        formattedVoltage,
+        prefersFahrenheit,
+        t,
+    ]);
 
     if (!sanitizedRoute.length) {
         return (
@@ -324,7 +321,10 @@ const RouteReplay = ({
             <Heading className="text-xl font-semibold mb-3">
                 {t('trip.routeReplay.title')}
             </Heading>
-            <View className="overflow-hidden rounded-3xl" style={{ height: 280 }}>
+            <View
+                className="overflow-hidden rounded-3xl"
+                style={{ height: 280 }}
+            >
                 <MapView
                     ref={mapRef}
                     style={{ flex: 1 }}
@@ -385,25 +385,26 @@ const RouteReplay = ({
                 </View>
             </View>
 
-                <View className="flex-row items-center gap-3 mt-4">
-                    <Button
-                        variant="solid"
-                        action="primary"
-                        size="sm"
-                        disabled={sanitizedRoute.length <= 1}
-                        onPress={() => {
-                            if (sanitizedRoute.length <= 1) {
-                                return;
-                            }
-                            if (activeIndex >= sanitizedRoute.length - 1) {
-                                setActiveIndex(0);
-                            }
-                            setIsPlaying((prev) => !prev);
-                        }}
-                    >
-                        <Icon
-                            as={isPlaying ? LucidePause : LucidePlay}
-                            size={20}
+            <View className="flex-row items-start gap-3 mt-4">
+                <Button
+                    className="mt-1"
+                    variant="solid"
+                    action="primary"
+                    size="sm"
+                    disabled={sanitizedRoute.length <= 1}
+                    onPress={() => {
+                        if (sanitizedRoute.length <= 1) {
+                            return;
+                        }
+                        if (activeIndex >= sanitizedRoute.length - 1) {
+                            setActiveIndex(0);
+                        }
+                        setIsPlaying((prev) => !prev);
+                    }}
+                >
+                    <Icon
+                        as={isPlaying ? LucidePause : LucidePlay}
+                        size={20}
                         className="text-secondary-50 mr-2"
                     />
                     <ButtonText>
@@ -412,12 +413,12 @@ const RouteReplay = ({
                             : t('trip.routeReplay.play')}
                     </ButtonText>
                 </Button>
-                    <View className="flex-1">
-                        <Slider
-                            minimumValue={0}
-                            maximumValue={Math.max(sanitizedRoute.length - 1, 0)}
-                            step={1}
-                            value={activeIndex}
+                <View className="flex-1">
+                    <Slider
+                        minimumValue={0}
+                        maximumValue={Math.max(sanitizedRoute.length - 1, 0)}
+                        step={1}
+                        value={activeIndex}
                         onValueChange={(value) => {
                             const clampedIndex = Math.min(
                                 Math.max(Math.round(value), 0),
@@ -430,11 +431,11 @@ const RouteReplay = ({
                         minimumTrackTintColor="#2563EB"
                         maximumTrackTintColor="#CBD5F5"
                         thumbTintColor="#1E3A8A"
-                        />
-                        <Text className="text-secondary-500 mt-1 text-right">
-                            {timestampLabel}
-                        </Text>
-                    </View>
+                    />
+                    <Text className="text-secondary-500 mt-1 text-right">
+                        {timestampLabel}
+                    </Text>
+                </View>
             </View>
 
             <View className="mt-4 flex-row flex-wrap gap-3">
