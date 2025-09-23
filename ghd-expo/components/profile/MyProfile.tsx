@@ -7,7 +7,6 @@ import {
     AvatarFallbackText,
     AvatarImage,
 } from '@/components/ui/avatar';
-import { HStack } from '@/components/ui/hstack';
 import { Heading } from '@/components/ui/heading';
 import ListItem from '@/components/dashboard/ListItem';
 import { Controller } from '@/interfaces/Controller';
@@ -63,6 +62,58 @@ const MyProfile = ({ navigation, route }) => {
     const [showTemperatureActions, setShowTemperatureActions] =
         React.useState(false);
 
+    const preferences = user.doc?.preferences ?? {};
+    const languagePreference = (preferences.language || 'en').toUpperCase();
+    const speedPreference = (preferences.speedUnit || 'MPH').toUpperCase();
+    const temperaturePreference = temperatureUnit === 'F' ? '°F' : '°C';
+    const profileTagline = t(
+        'user.profileTagline',
+        'Tune your account, devices, and preferences.'
+    );
+
+    const profileHighlights = [
+        {
+            label: t('user.myControllers'),
+            value: `${controllers?.length ?? 0}`,
+        },
+        {
+            label: t('common.language'),
+            value: languagePreference,
+        },
+        {
+            label: t('common.speedUnit'),
+            value: speedPreference,
+        },
+        {
+            label: t('common.temperatureUnit'),
+            value: temperaturePreference,
+        },
+    ];
+
+    const preferenceItems = [
+        {
+            key: 'language',
+            icon: LucideLanguages,
+            title: t('common.language'),
+            description: languagePreference,
+            onPress: () => setShowLanguageActions(true),
+        },
+        {
+            key: 'speed',
+            icon: LucideCog,
+            title: t('common.speedUnit'),
+            description: speedPreference,
+            onPress: () => setShowSpeedActions(true),
+        },
+        {
+            key: 'temperature',
+            icon: LucideThermometer,
+            title: t('common.temperatureUnit'),
+            description: temperaturePreference,
+            onPress: () => setShowTemperatureActions(true),
+        },
+    ];
+
     const deleteAccount = async () => {
         try {
             await auth().currentUser!.delete();
@@ -77,97 +128,188 @@ const MyProfile = ({ navigation, route }) => {
 
     const hideControllers = route.params?.hideControllers;
 
+    const heroCardClass =
+        'rounded-3xl bg-secondary-100 px-6 py-6 border border-secondary-200/60';
+    const chipBackgroundClass =
+        'bg-secondary-200/60 border border-secondary-200/80 rounded-2xl px-4 py-3';
+    const chipLabelClass = 'text-secondary-500 text-xs uppercase font-semibold';
+    const chipValueClass = 'text-secondary-600 text-xl font-bold mt-1';
+    const logoutButtonClass =
+        'border-secondary-300/70 bg-secondary-0/20 px-4 py-2 rounded-2xl flex-row items-center gap-2';
+    const sectionCardClass =
+        'rounded-3xl bg-secondary-100 px-5 py-6 border border-secondary-200/60';
+    const cardHeadingClass = 'text-secondary-900';
+    const cardBodyTextClass = 'text-secondary-500';
+
     return (
-        <ScrollView className="p-8">
-            <HStack className={'items-center gap-4 w-full'}>
-                <Avatar size="lg">
-                    <AvatarFallbackText>{user.displayName}</AvatarFallbackText>
-                    <AvatarImage
-                        source={{
-                            uri: user.photoURL,
-                        }}
-                    />
-                    <AvatarBadge />
-                </Avatar>
-                <HStack className="justify-between flex-1">
-                    <View className="flex-1">
-                        <Heading>{user.displayName}</Heading>
-                        <Text className="text-secondary-600 font-bold">
-                            {user.email}
-                        </Text>
-                    </View>
-                    <View>
-                        <Button
-                            onPress={() => {
-                                signOut();
-                            }}
-                        >
-                            <ButtonText>{t('common.logout')}</ButtonText>
-                        </Button>
-                    </View>
-                </HStack>
-            </HStack>
-
-            {!hideControllers && (
-                <>
-                    <HStack className="mt-8 justify-between items-center">
-                        <Heading>{t('user.myControllers')}</Heading>
-                        <Button
-                            variant="solid"
-                            action="primary"
-                            size="sm"
-                            onPress={() => {
-                                navigation.navigate('DevicesScreen');
-                            }}
-                        >
-                            <Icon
-                                as={LucidePlus}
-                                className="text-secondary-500"
-                            />
-                            <ButtonText>{t('common.new')}</ButtonText>
-                        </Button>
-                    </HStack>
-                    {controllers.map((controller: Controller) => (
-                        <ListItem
-                            icon={LucideCpu}
-                            key={controller.serialNumber}
-                            title={controller.name}
-                            description={controller.serialNumber}
-                        />
-                    ))}
-                </>
-            )}
-
-            <View className="mt-4">
-                <Heading>Preferences</Heading>
-                <ListItem
-                    icon={LucideLanguages}
-                    rightIcon={LucidePanelBottomClose}
-                    title={t('common.language')}
-                    description={user.doc.preferences?.language || 'EN'}
-                    onPress={() => setShowLanguageActions(true)}
-                />
-                <ListItem
-                    icon={LucideCog}
-                    rightIcon={LucidePanelBottomClose}
-                    title={t('common.speedUnit')}
-                    description={user.doc.preferences?.speedUnit || 'MPH'}
-                    onPress={() => setShowSpeedActions(true)}
-                />
-                <ListItem
-                    icon={LucideThermometer}
-                    rightIcon={LucidePanelBottomClose}
-                    title={t('common.temperatureUnit')}
-                    description={temperatureUnit === 'F' ? '°F' : '°C'}
-                    onPress={() => setShowTemperatureActions(true)}
-                />
+        <ScrollView
+            className="flex-1 bg-background-0"
+            contentContainerStyle={{ paddingBottom: 96 }}
+        >
+            <View className="px-5 pt-6">
+                <Heading
+                    className={`${cardHeadingClass} text-3xl font-semibold`}
+                >
+                    {t('pages.myProfile')}
+                </Heading>
+                <Text className={`${cardBodyTextClass} mt-1`}>
+                    {profileTagline}
+                </Text>
             </View>
 
-            <DeleteAccountButton
-                onPress={() => {
-                    setConfirmModalOpen(true);
-                }}
-            />
+            <View className="px-5 mt-6">
+                <View className={heroCardClass}>
+                    <View className="flex-row items-start gap-4">
+                        <Avatar size="xl" className="border border-white/30">
+                            <AvatarFallbackText>
+                                {user.displayName}
+                            </AvatarFallbackText>
+                            <AvatarImage
+                                source={{
+                                    uri: user.photoURL,
+                                }}
+                            />
+                            <AvatarBadge />
+                        </Avatar>
+                        <View className="flex-1">
+                            <Text
+                                className={`${cardHeadingClass} text-3xl font-semibold leading-tight`}
+                            >
+                                {user.displayName}
+                            </Text>
+                            <Text className={`${cardBodyTextClass} mt-1`}>
+                                {user.email}
+                            </Text>
+                        </View>
+                        <Button
+                            variant="outline"
+                            action="default"
+                            size="sm"
+                            className={logoutButtonClass}
+                            onPress={signOut}
+                        >
+                            <ButtonText className="text-secondary-900 font-semibold">
+                                {t('common.logout')}
+                            </ButtonText>
+                        </Button>
+                    </View>
+                    <View className="flex-row flex-wrap gap-3 mt-6">
+                        {profileHighlights.map((chip) => (
+                            <View
+                                key={chip.label}
+                                className={chipBackgroundClass}
+                                style={{ minWidth: 120 }}
+                            >
+                                <Text className={chipLabelClass}>
+                                    {chip.label}
+                                </Text>
+                                <Text className={chipValueClass}>
+                                    {chip.value}
+                                </Text>
+                            </View>
+                        ))}
+                    </View>
+                </View>
+            </View>
+
+            {!hideControllers && (
+                <View className="px-5 mt-6">
+                    <View className={sectionCardClass}>
+                        <View className="flex-row items-center justify-between">
+                            <Heading
+                                className={`${cardHeadingClass} text-xl font-semibold`}
+                            >
+                                {t('user.myControllers')}
+                            </Heading>
+                            <Button
+                                variant="solid"
+                                action="primary"
+                                size="sm"
+                                onPress={() => {
+                                    navigation.navigate('DevicesScreen');
+                                }}
+                            >
+                                <Icon
+                                    as={LucidePlus}
+                                    className="text-secondary-50"
+                                />
+                                <ButtonText>{t('common.new')}</ButtonText>
+                            </Button>
+                        </View>
+                        {controllers.length ? (
+                            <View className="mt-4">
+                                {controllers.map(
+                                    (controller: Controller, index) => (
+                                        <View
+                                            key={controller.serialNumber}
+                                            className={`border-b border-secondary-200/60 ${
+                                                index === controllers.length - 1
+                                                    ? 'border-transparent'
+                                                    : ''
+                                            }`}
+                                        >
+                                            <ListItem
+                                                icon={LucideCpu}
+                                                title={controller.name}
+                                                description={
+                                                    controller.serialNumber
+                                                }
+                                            />
+                                        </View>
+                                    )
+                                )}
+                            </View>
+                        ) : (
+                            <Text
+                                className={`${cardBodyTextClass} font-semibold mt-4`}
+                            >
+                                {t(
+                                    'user.noControllers',
+                                    'No controllers yet — add one to get started.'
+                                )}
+                            </Text>
+                        )}
+                    </View>
+                </View>
+            )}
+
+            <View className="px-5 mt-6">
+                <View className={sectionCardClass}>
+                    <Heading
+                        className={`${cardHeadingClass} text-xl font-semibold`}
+                    >
+                        {t('user.preferencesHeading', 'Preferences')}
+                    </Heading>
+                    <View className="mt-4">
+                        {preferenceItems.map((item, index) => (
+                            <View
+                                key={item.key}
+                                className={`border-b border-secondary-200/60 ${
+                                    index === preferenceItems.length - 1
+                                        ? 'border-transparent'
+                                        : ''
+                                }`}
+                            >
+                                <ListItem
+                                    icon={item.icon}
+                                    rightIcon={LucidePanelBottomClose}
+                                    title={item.title}
+                                    description={item.description}
+                                    onPress={item.onPress}
+                                />
+                            </View>
+                        ))}
+                    </View>
+                </View>
+            </View>
+
+            <View className="px-5 mt-8">
+                <DeleteAccountButton
+                    onPress={() => {
+                        setConfirmModalOpen(true);
+                    }}
+                />
+            </View>
             <AlertDialog
                 heading={t('common.deleteAccount')}
                 description={t('common.deleteAccountDescription')}
