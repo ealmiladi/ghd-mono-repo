@@ -1,13 +1,20 @@
 import { Controller } from '@/interfaces/Controller';
-import { View } from 'react-native';
+import { Linking, TouchableOpacity, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Text } from '@/components/ui/text';
 import { HStack } from '@/components/ui/hstack';
-import React, { useCallback, useState } from 'react';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Animated, {
+    interpolateColor,
+    Layout,
+    useAnimatedScrollHandler,
+    useAnimatedStyle,
+    useSharedValue,
+    withTiming,
+} from 'react-native-reanimated';
 import BatteryBar from '@/components/dashboard/BatteryBar';
 import AnimatedBike from './AnimatedBike';
 import NumberTicker from '@/components/dashboard/NumberTicker';
-import ControllerScrollView from '@/components/dashboard/ControllerScrollView';
 import ControllerHeaderInformation from '@/components/dashboard/ControllerHeaderInformation';
 import { useTranslation } from 'react-i18next';
 import { useUser } from '@/providers/UserContextProvider';
@@ -17,25 +24,36 @@ import ControllerLandscapeView from '@/components/dashboard/ControllerLandscapeV
 import GearPortion from '@/components/dashboard/GearPortion';
 import { Button, ButtonText } from '@/components/ui/button';
 import { useColorScheme } from 'react-native';
-import { LucideLocateFixed } from 'lucide-react-native';
-import { Spinner } from '@/components/ui/spinner';
-import ControllerPortraitView from '@/components/dashboard/ControllerPortraitView';
+import {
+    LucideLocateFixed,
+    LucideMaximize2,
+    LucideRoute,
+    LucideSettings,
+    LucideX,
+} from 'lucide-react-native';
 import FullscreenHud from '@/components/dashboard/FullscreenHud';
 import useControllerTelemetry from '@/hooks/useControllerTelemetry';
 import useControllerOrientation from '@/hooks/useControllerOrientation';
 import useControllerAnimations from '@/hooks/useControllerAnimations';
+import { toFixed } from '@/utils';
+import AlertDialog from '@/components/dashboard/AlertDialog';
+import ControllerFault from '@/components/dashboard/ControllerFault';
+import { Heading } from '@/components/ui/heading';
 
-const AnimatedText = Animated.createAnimatedComponent(Text);
-const AnimatedHStack = Animated.createAnimatedComponent(HStack);
+const AnimatedScrollView = Animated.ScrollView;
+const AnimatedCard = Animated.createAnimatedComponent(View);
 
-const FROM_TOP = 234.66;
+const HERO_FADE_DISTANCE = 320;
+const BUSINESS_EMAIL = 'ealmiladi@gmail.com';
+
 const ControllerPage = ({ controller }: { controller: Controller }) => {
     const insets = useSafeAreaInsets();
-    const paddingTop = FROM_TOP + insets.top;
-    const { prefersMph, prefersFahrenheit } = useUser();
+    const paddingTop = HERO_FADE_DISTANCE;
+    const { prefersMph, prefersFahrenheit, unbindController } = useUser();
     const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const isLandscape = useControllerOrientation();
+    const navigation: any = useNavigation();
 
     const {
         device,
@@ -77,7 +95,6 @@ const ControllerPage = ({ controller }: { controller: Controller }) => {
     const {
         scrollPosition,
         animatedView,
-        animatedBikeView,
         animatedBikeOpacity,
         animatedMphStyle,
     } = useControllerAnimations({
@@ -88,12 +105,259 @@ const ControllerPage = ({ controller }: { controller: Controller }) => {
     });
 
     const [isHudVisible, setHudVisible] = useState(false);
+    const [isUnbindModalOpen, setUnbindModalOpen] = useState(false);
+    const [tripElapsed, setTripElapsed] = useState<string | null>(null);
+
     const openHud = useCallback(() => setHudVisible(true), []);
     const closeHud = useCallback(() => setHudVisible(false), []);
 
     const handleEndTrip = useCallback(async () => {
         await endCurrentTrip({ onSuccess: closeHud });
     }, [endCurrentTrip, closeHud]);
+
+    const onUnboundConfirmed = useCallback(async () => {
+        try {
+            if (device) {
+                await device.cancelConnection();
+            }
+            await unbindController(controller.serialNumber);
+            setUnbindModalOpen(false);
+        } catch (error) {
+            console.error(error);
+        }
+    }, [controller.serialNumber, device, unbindController]);
+
+    const onScroll = useAnimatedScrollHandler(
+        (event) => {
+            const y = event.contentOffset.y;
+            if (y > 0) {
+                scrollPosition.value = y;
+            }
+        },
+        [scrollPosition]
+    );
+
+    const heroCardClass =
+        'rounded-3xl bg-secondary-100 px-6 py-6 border border-secondary-200/60 shadow-soft-1';
+    const cardHeadingClass = 'text-secondary-900';
+    const cardBodyTextClass = 'text-secondary-500';
+    const cardClass =
+        'rounded-3xl bg-secondary-100 px-5 py-6 border border-secondary-200/60 shadow-soft-1';
+    const sectionHeadingClass = 'text-secondary-900 text-xl font-semibold';
+    const sectionSubtitleClass = 'text-secondary-500 mt-1';
+    const statLabelClass = 'text-secondary-400 text-xs uppercase font-semibold';
+    const statValueClass = 'text-secondary-600 text-lg font-bold';
+
+    const showHeroTelemetry = hasReceivedBatteryInformation;
+
+    const statusText = useMemo(() => {
+        if (controllerFaults.length) {
+            return t('common.faultDetected');
+        }
+        if (device && hasReceivedBatteryInformation) {
+            return '';
+        }
+        if (device && !hasReceivedBatteryInformation) {
+            return t(
+                'controller.hero.initializingTelemetry',
+                'Initializing telemetry…'
+            );
+        }
+        if (deviceLoadingStates[controller.localName]) {
+            return t('common.connecting');
+        }
+        if (isScanning) {
+            return t('common.searching');
+        }
+        return t('common.noConnection');
+    }, [
+        controllerFaults.length,
+        controller.localName,
+        device,
+        deviceLoadingStates,
+        hasReceivedBatteryInformation,
+        isScanning,
+        t,
+    ]);
+
+    const statusTone = controllerFaults.length
+        ? 'text-error-500'
+        : 'text-secondary-500';
+
+    const formatTemperature = useCallback(
+        (value?: number | null) => {
+            if (value === undefined || value === null) {
+                return '—';
+            }
+            if (prefersFahrenheit) {
+                return `${toFixed(value * 1.8 + 32, 0)}°F`;
+            }
+            return `${toFixed(value, 0)}°C`;
+        },
+        [prefersFahrenheit]
+    );
+
+    const toNumeric = useCallback((value: any) => {
+        if (value === null || value === undefined) {
+            return null;
+        }
+        if (typeof value === 'number') {
+            return value;
+        }
+        if (typeof value === 'string') {
+            const parsed = parseFloat(value);
+            return Number.isNaN(parsed) ? null : parsed;
+        }
+        if (typeof value?.toNumber === 'function') {
+            try {
+                return value.toNumber();
+            } catch (error) {
+                console.warn('Failed to convert value via toNumber', error);
+                return null;
+            }
+        }
+        const coerced = Number(value);
+        return Number.isNaN(coerced) ? null : coerced;
+    }, []);
+
+    const rawTripMetrics = (controller as any)?.tripMetrics ?? null;
+    const totalDistanceMeters = useMemo(() => {
+        const metricsDistanceMeters = toNumeric(
+            rawTripMetrics?.totalDistanceMeters
+        );
+        if (metricsDistanceMeters !== null) {
+            return metricsDistanceMeters;
+        }
+
+        const metricsDistanceKilometers = toNumeric(
+            rawTripMetrics?.totalDistanceKilometers
+        );
+        if (metricsDistanceKilometers !== null) {
+            return metricsDistanceKilometers * 1000;
+        }
+
+        const metricsDistanceMiles = toNumeric(
+            rawTripMetrics?.totalDistanceMiles
+        );
+        if (metricsDistanceMiles !== null) {
+            return metricsDistanceMiles * 1609.34;
+        }
+
+        const odometerMeters = toNumeric((controller as any)?.odometerInMeters);
+        if (odometerMeters !== null) {
+            return odometerMeters;
+        }
+
+        const odometerValue = toNumeric((controller as any)?.odometer);
+        if (odometerValue !== null) {
+            return odometerValue;
+        }
+
+        const fardriverMeters = toNumeric(controller.fardriverOdometer);
+        if (fardriverMeters !== null) {
+            return fardriverMeters;
+        }
+
+        return 0;
+    }, [controller.fardriverOdometer, controller, rawTripMetrics, toNumeric]);
+
+    const totalDistanceValue = toFixed(
+        totalDistanceMeters * (prefersMph ? 0.000621371 : 0.001),
+        0
+    );
+    const totalDistanceDisplay = `${totalDistanceValue} ${
+        prefersMph ? t('common.miles') : t('common.kilometers')
+    }`;
+
+    useEffect(() => {
+        if (!currentTrip) {
+            setTripElapsed(null);
+            return;
+        }
+
+        const computeElapsed = () => {
+            const start = toNumeric((currentTrip as any)?.startTime) ?? 0;
+            if (!start) {
+                setTripElapsed(null);
+                return;
+            }
+
+            const endRaw = (currentTrip as any)?.endTime;
+            const endNumeric = toNumeric(endRaw);
+            const end =
+                endNumeric && endNumeric > start ? endNumeric : Date.now();
+
+            const diff = Math.max(0, end - start);
+            const minutes = Math.floor(diff / 60000);
+            const seconds = Math.floor((diff % 60000) / 1000);
+            setTripElapsed(
+                `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+            );
+        };
+
+        computeElapsed();
+
+        if ((currentTrip as any)?.endTime) {
+            return;
+        }
+
+        const interval = setInterval(computeElapsed, 1000);
+        return () => clearInterval(interval);
+    }, [currentTrip, toNumeric]);
+
+    const isTripActive = useMemo(() => {
+        if (!currentTrip) {
+            return false;
+        }
+        const endTimeNumeric = toNumeric((currentTrip as any)?.endTime);
+        if (endTimeNumeric === null) {
+            return true;
+        }
+        return endTimeNumeric <= 0;
+    }, [currentTrip, toNumeric]);
+
+    const heroAccent = useSharedValue(device ? 1 : 0);
+
+    useEffect(() => {
+        heroAccent.value = withTiming(device ? 1 : 0, {
+            duration: 400,
+        });
+    }, [device, heroAccent]);
+
+    const heroCardAnimatedStyle = useAnimatedStyle(() => {
+        const inactiveBorder =
+            colorScheme === 'dark'
+                ? 'rgba(71,85,105,0.7)'
+                : 'rgba(226,232,240,0.7)';
+
+        if (heroAccent.value <= 0.01) {
+            return {
+                shadowRadius: 12,
+                shadowOffset: { width: 0, height: 4 },
+                elevation: 6,
+            };
+        }
+
+        const borderColor = interpolateColor(
+            heroAccent.value,
+            [0, 1],
+            [inactiveBorder, '#2563EB']
+        );
+        const shadowColor = interpolateColor(
+            heroAccent.value,
+            [0, 1],
+            ['rgba(15,23,42,0.18)', 'rgba(37,99,235,0.45)']
+        );
+
+        return {
+            borderColor,
+            shadowColor,
+            shadowOpacity: 0.18 + heroAccent.value * 0.2,
+            shadowRadius: 12 + heroAccent.value * 6,
+            shadowOffset: { width: 0, height: 4 + heroAccent.value * 2 },
+            elevation: 6 + heroAccent.value * 3,
+        };
+    }, [heroAccent, colorScheme]);
 
     if (isLandscape) {
         return (
@@ -130,142 +394,313 @@ const ControllerPage = ({ controller }: { controller: Controller }) => {
     }
 
     return (
-        <View className="flex-1">
-            <ControllerScrollView
-                {...{
-                    device,
-                    paddingTop,
-                    scrollPosition,
-                    controllerFaults,
-                    currentTrip,
-                    controller,
-                    onEndTrip: handleEndTrip,
-                    isEndingTrip,
-                    onOpenHud: openHud,
+        <View className="flex-1 bg-background-0">
+            <AnimatedScrollView
+                contentContainerStyle={{
+                    paddingTop: insets.top + 16,
+                    paddingBottom: 128,
                 }}
-            />
-            <Animated.View
-                style={[animatedView, { paddingTop: insets.top }]}
-                className="absolute w-full px-4"
+                showsVerticalScrollIndicator={false}
+                onScroll={onScroll}
+                scrollEventThrottle={16}
             >
-                <ControllerHeaderInformation
-                    {...{
-                        name: controller.name,
-                        localName: controller.localName,
-                        device,
-                    }}
-                />
-                <View className="h-2" />
-                <View>
-                    {hasReceivedBatteryInformation ? (
-                        <Animated.View
-                            entering={FadeIn.duration(500)}
-                            exiting={FadeOut}
-                        >
-                            <View className="flex-row items-center gap-2">
-                                <View className="w-20 mr-2">
+                <View className="px-5">
+                    <AnimatedCard
+                        layout={Layout.duration(220).springify().damping(32).stiffness(150)}
+                        className={heroCardClass}
+                        style={[animatedView, heroCardAnimatedStyle]}
+                    >
+                        <ControllerHeaderInformation
+                            {...{
+                                name: controller.name,
+                                localName: controller.localName,
+                                device,
+                            }}
+                        />
+                        {statusText ? (
+                            <Text
+                                className={`${statusTone} text-sm font-semibold mt-2`}
+                            >
+                                {statusText}
+                            </Text>
+                        ) : null}
+                        {showHeroTelemetry && (
+                            <>
+                                <View className="mt-4" style={{ width: 140 }}>
                                     <BatteryBar
                                         height={24}
-                                        socPercentage={parseInt(batterySoc!)}
+                                        socPercentage={
+                                            batterySoc
+                                                ? parseInt(batterySoc, 10)
+                                                : 0
+                                        }
                                     />
                                 </View>
-                                <Text
-                                    className={`${batteryColor} flex-1 text-lg font-bold`}
-                                >
-                                    {batteryVoltage}V
+
+                                <View className="mt-3">
+                                    <GearPortion
+                                        motorCutoffApplied={motorCutoffApplied}
+                                        currentGear={currentGear}
+                                        currentGearPower={currentGearPower}
+                                        hasReceivedBatteryInformation={
+                                            hasReceivedBatteryInformation
+                                        }
+                                        textClass="text-base"
+                                    />
+                                </View>
+                            </>
+                        )}
+                    </AnimatedCard>
+
+                    {isTripActive && (
+                        <View className="mt-6">
+                            <View className={cardClass}>
+                                <Heading className={sectionHeadingClass}>
+                                    {t(
+                                        'controller.currentTrip.title',
+                                        'Current trip'
+                                    )}
+                                </Heading>
+                                <Text className={sectionSubtitleClass}>
+                                    {tripElapsed
+                                        ? `${t(
+                                              'controller.currentTrip.elapsed',
+                                              'Elapsed'
+                                          )}: ${tripElapsed}`
+                                        : t(
+                                              'controller.currentTrip.subtitle',
+                                              'Live telemetry while your trip is active.'
+                                          )}
                                 </Text>
-                                {!controllerFaults.length && (
-                                    <AnimatedText
-                                        entering={FadeIn}
-                                        exiting={FadeOut}
-                                        className={`text-secondary-500 text-lg font-bold`}
+
+                                <View className="mt-3 flex-row items-center justify-between gap-6">
+                                    <View>
+                                        <NumberTicker
+                                            sharedValue={calculatedSpeedSharedValue}
+                                            width={160}
+                                        />
+                                        <HStack className="items-center mt-2 gap-1">
+                                            {controller.preferGpsSpeed && (
+                                                <Icon
+                                                    size={20}
+                                                    as={LucideLocateFixed}
+                                                    className="text-secondary-500"
+                                                />
+                                            )}
+                                            <Text className="text-secondary-500 text-lg font-bold">
+                                                {prefersMph ? 'MPH' : 'KPH'}
+                                            </Text>
+                                        </HStack>
+                                    </View>
+
+                                    <View className="h-40 flex-1 items-center justify-center">
+                                        <AnimatedBike
+                                            gearMode={currentGear}
+                                            animatedBikeOpacity={
+                                                animatedBikeOpacity
+                                            }
+                                            maxSpeedInRPM={maxSpeedInRPM}
+                                            polePairsSharedValue={
+                                                polePairsSharedValue
+                                            }
+                                            rpmSharedValue={rpmSharedValue}
+                                            wattsSharedValue={
+                                                wattsSharedValue
+                                            }
+                                            calculatedSpeedSharedValue={
+                                                calculatedSpeedSharedValue
+                                            }
+                                            shouldShiftBike={false}
+                                            preferredWidth={240}
+                                        />
+                                    </View>
+                                </View>
+
+                                <View className="mt-6 flex-row flex-wrap gap-3">
+                                    <Button
+                                        variant="solid"
+                                        size="lg"
+                                        onPress={openHud}
                                     >
-                                        {t('common.ready')}
-                                    </AnimatedText>
-                                )}
-                                {!!controllerFaults.length && (
-                                    <AnimatedText
-                                        entering={FadeIn}
-                                        exiting={FadeOut}
-                                        className={`text-error-500 text-lg font-bold`}
+                                        <Icon
+                                            as={LucideMaximize2}
+                                            size={18}
+                                            className="text-primary-50 mr-2"
+                                        />
+                                        <ButtonText>
+                                            {t(
+                                                'controller.currentTrip.fullscreen',
+                                                'Go fullscreen'
+                                            )}
+                                        </ButtonText>
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="lg"
+                                        onPress={handleEndTrip}
+                                        isDisabled={isEndingTrip}
                                     >
-                                        {t('common.faultDetected')}
-                                    </AnimatedText>
-                                )}
+                                        <Icon
+                                            as={LucideX}
+                                            size={18}
+                                            className="text-error-500 mr-2"
+                                        />
+                                        <ButtonText className="text-error-500">
+                                            {t(
+                                                'controller.currentTrip.endTrip',
+                                                'End trip'
+                                            )}
+                                        </ButtonText>
+                                    </Button>
+                                </View>
                             </View>
-                        </Animated.View>
-                    ) : (
-                        <View style={{ height: 24.7 }}>
-                            {!!deviceLoadingStates[controller.localName] && (
-                                <Text className="text-secondary-500 text-lg font-bold">
-                                    {t('common.connecting')}
-                                </Text>
-                            )}
-                            {!deviceLoadingStates[controller.localName] &&
-                                !device && (
-                                    <>
-                                        {isScanning && (
-                                            <Text className="text-secondary-500 text-lg font-bold">
-                                                {t('common.searching')}
-                                            </Text>
-                                        )}
-                                        {!isScanning && (
-                                            <Text className="text-secondary-500 text-lg font-bold">
-                                                {t('common.noConnection')}
-                                            </Text>
-                                        )}
-                                    </>
-                                )}
                         </View>
                     )}
                 </View>
 
-                <GearPortion
-                    motorCutoffApplied={motorCutoffApplied}
-                    currentGear={currentGear}
-                    currentGearPower={currentGearPower}
-                    hasReceivedBatteryInformation={
-                        hasReceivedBatteryInformation
-                    }
-                />
-
-                <AnimatedHStack
-                    className="h-40 relative items-center"
-                    style={animatedBikeView}
-                >
-                    <View className="absolute">
-                        <AnimatedBike
-                            gearMode={currentGear}
-                            animatedBikeOpacity={animatedBikeOpacity}
-                            maxSpeedInRPM={maxSpeedInRPM}
-                            polePairsSharedValue={polePairsSharedValue}
-                            rpmSharedValue={rpmSharedValue}
-                            wattsSharedValue={wattsSharedValue}
-                            calculatedSpeedSharedValue={
-                                calculatedSpeedSharedValue
-                            }
-                        />
+                {controllerFaults?.length > 0 && (
+                    <View className="px-5 mt-4 gap-3">
+                        {controllerFaults.map((fault, index) => (
+                            <ControllerFault key={index} fault={fault} />
+                        ))}
                     </View>
-                    <Animated.View className="w-48" style={animatedMphStyle}>
-                        <NumberTicker
-                            sharedValue={calculatedSpeedSharedValue}
-                            width={192}
-                        />
-                        <HStack className="items-center mt-2 gap-1">
-                            {controller.preferGpsSpeed && (
+                )}
+
+                <View className="px-5 mt-6 gap-5">
+                    <View className={cardClass}>
+                        <Heading className={sectionHeadingClass}>
+                            {t('controller.quickActions', 'Quick actions')}
+                        </Heading>
+                        <View className="mt-4 gap-3">
+                            <Button
+                                variant="outline"
+                                size="lg"
+                                onPress={() =>
+                                    navigation.navigate('Trips', {
+                                        serialNumber: controller.serialNumber,
+                                    })
+                                }
+                            >
                                 <Icon
-                                    size={24}
-                                    as={LucideLocateFixed}
-                                    className="text-secondary-500"
+                                    as={LucideRoute}
+                                    size={18}
+                                    className="text-secondary-500 mr-2"
                                 />
+                                <ButtonText>
+                                    {t(
+                                        'controller.viewTrips',
+                                        'Trips & route replay'
+                                    )}
+                                </ButtonText>
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="lg"
+                                onPress={() =>
+                                    navigation.navigate(
+                                        'DisplayOptions' as never,
+                                        {
+                                            controller,
+                                            localName: controller.localName,
+                                        }
+                                    )
+                                }
+                            >
+                                <Icon
+                                    as={LucideSettings}
+                                    size={18}
+                                    className="text-secondary-500 mr-2"
+                                />
+                                <ButtonText>
+                                    {t(
+                                        'controller.tuneDisplay',
+                                        'Customize display layout'
+                                    )}
+                                </ButtonText>
+                            </Button>
+                        </View>
+                    </View>
+
+                    <View className={cardClass}>
+                        <Heading className={sectionHeadingClass}>
+                            {t('controller.aboutController', 'Controller info')}
+                        </Heading>
+                        <Text className={sectionSubtitleClass}>
+                            {t(
+                                'controller.aboutControllerSubtitle',
+                                'Identifiers and maintenance shortcuts.'
                             )}
-                            <Text className="text-secondary-500 text-xl font-bold">
-                                {prefersMph ? 'MPH' : 'KPH'}
+                        </Text>
+                        <View className="mt-4 gap-3">
+                            <View>
+                                <Text className={statLabelClass}>
+                                    {t(
+                                        'controller.serialNumber',
+                                        'Serial number'
+                                    )}
+                                </Text>
+                                <Text className={statValueClass}>
+                                    {controller.serialNumber}
+                                </Text>
+                            </View>
+                            <View>
+                                <Text className={statLabelClass}>
+                                    {t(
+                                        'trip.summary.totalDistance',
+                                        'Total distance'
+                                    )}
+                                </Text>
+                                <Text className={statValueClass}>
+                                    {totalDistanceDisplay}
+                                </Text>
+                            </View>
+                        </View>
+                        <Button
+                            variant="outline"
+                            size="lg"
+                            className="mt-6"
+                            onPress={() => setUnbindModalOpen(true)}
+                        >
+                            <Icon
+                                as={LucideX}
+                                size={18}
+                                className="text-error-500 mr-2"
+                            />
+                            <ButtonText className="text-error-500">
+                                {t('controller.removeAccess', 'Remove access')}
+                            </ButtonText>
+                        </Button>
+                    </View>
+
+                    <View className={cardClass}>
+                        <Heading className={sectionHeadingClass}>
+                            {t('controller.aboutApp', 'About GDriver')}
+                        </Heading>
+                        <View className="mt-3 gap-1">
+                            <Text className={statLabelClass}>Version</Text>
+                            <Text className={statValueClass}>
+                                v{require('../../app.json').expo.version}
                             </Text>
-                        </HStack>
-                    </Animated.View>
-                </AnimatedHStack>
-            </Animated.View>
+                        </View>
+                        <View className="mt-4">
+                            <Text className={statLabelClass}>
+                                {t('common.businessInquiry')}
+                            </Text>
+                            <TouchableOpacity
+                                className="mt-1"
+                                onPress={() =>
+                                    Linking.openURL(`mailto:${BUSINESS_EMAIL}`)
+                                }
+                            >
+                                <Text className={statValueClass}>
+                                    {BUSINESS_EMAIL}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </AnimatedScrollView>
+
             <FullscreenHud
                 visible={isHudVisible}
                 onClose={closeHud}
@@ -303,6 +738,16 @@ const ControllerPage = ({ controller }: { controller: Controller }) => {
                 motorCutoffApplied={motorCutoffApplied}
                 voltageSag={voltageSag}
                 currentLocation={currentLocation}
+            />
+
+            <AlertDialog
+                heading={t('devices.unbindModalTitle')}
+                description={t('devices.unbindModalDescription')}
+                buttonTitle={t('common.continue')}
+                cancelButtonTitle={t('common.cancel')}
+                isOpen={isUnbindModalOpen}
+                onButtonClick={onUnboundConfirmed}
+                setOpen={() => setUnbindModalOpen(false)}
             />
         </View>
     );

@@ -40,6 +40,7 @@ const AnimatedBike = memo(
         maxSpeedInRPM,
         gearMode,
         shouldShiftBike = true,
+        preferredWidth,
     }: {
         rpmSharedValue: any;
         animatedBikeOpacity: any;
@@ -49,6 +50,7 @@ const AnimatedBike = memo(
         maxSpeedInRPM: any;
         gearMode: any;
         shouldShiftBike?: boolean;
+        preferredWidth?: number;
     }) => {
         const colorScheme = useColorScheme(); // Hook for theme detection
 
@@ -77,7 +79,8 @@ const AnimatedBike = memo(
             };
         });
 
-        const width = useWindowDimensions().width - 32;
+        const windowWidth = useWindowDimensions().width - 32;
+        const width = preferredWidth ?? windowWidth;
 
         const animatedStyle = useAnimatedStyle(() => {
             return {
