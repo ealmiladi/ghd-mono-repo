@@ -163,7 +163,10 @@ const MotorVitalsCard = (props: MotorVitalsCardProps) => {
             onLayout={onLayout}
         >
             {canvasWidth > 0 && (
-                <Canvas style={{ width: canvasWidth, height: CARD_HEIGHT }}>
+                <Canvas
+                    key={`${motorTemperatureCelcius ?? 'nil'}-${controllerTemperatureCelcius ?? 'nil'}-${prefersFahrenheit}`}
+                    style={{ width: canvasWidth, height: CARD_HEIGHT }}
+                >
                     <Group>
                         <RoundedRect
                             x={0}

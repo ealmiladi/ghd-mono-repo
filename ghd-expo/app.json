@@ -13,7 +13,7 @@
       "backgroundColor": "#000000"
     },
     "ios": {
-      "newArchEnabled": true,
+      "newArchEnabled": false,
       "userInterfaceStyle": "automatic",
       "supportsTablet": true,
       "bundleIdentifier": "app.ghdriver.ios",
@@ -28,7 +28,7 @@
       "appleTeamId": "LVRKY3AJDV"
     },
     "android": {
-      "newArchEnabled": true,
+      "newArchEnabled": false,
       "userInterfaceStyle": "automatic",
       "googleServicesFile": "./google-services.json",
       "package": "app.ghdriver.android",
